@@ -13,7 +13,7 @@
 #/musr/command construct sphere source   0  0.02  0 360 0 180  G4_Sr                   0 0 0 log_World       norot dead 301
 
 # SCINTILLATOR BLOCKS
-/musr/command construct box save50 50 0.005 50 G4_Galactic -225 0 0 log_World norot dead 950
+/musr/command construct box save50 75 0.005 50 G4_Galactic -250 0 0 log_World norot dead 950
 #/musr/command construct box save51 50 0.005 50 G4_Galactic 225 0 0 log_World norot dead 951
 #/musr/command construct box save52 0.005 50 50 G4_Galactic 0 225 0 log_World norot dead 952
 #/musr/command construct box save53 0.005 50 50 G4_Galactic 0 -225 0 log_World norot dead 953
@@ -25,12 +25,12 @@
 
 /musr/command construct tubs GroundPlate  149.75 150 60 0 360   G4_C    0 0 0     log_World norot dead 201 nofield 
 /musr/command construct tubs HVPlate      399.75 400 60 0 360   G4_C    0 0 0     log_World norot dead 202 nofield 
-/musr/command construct tubs GroundPlate2 499.75 500 60 -90 270 G4_C    0 0 0     log_World norot dead 203 nofield 
+/musr/command construct tubs GroundPlate2 499.75 500 60 0 360   G4_C    0 0 0     log_World norot dead 203 nofield 
 #/musr/command construct boxbox MIC        20 100 10 25 100 15  G4_Fe -450 -100 0 log_World norot dead 204 nofield
 #/musr/command construct box MICHole       20 100 10            G4_Galactic -450 -100 0 log_World norot dead 205 nofield 
 
-/musr/command globalfield Magnet_field 500 500 100 uniform  0 0 0  log_World  0 0 0.5 0 0 0 
-#/musr/command globalfield Magnet_field 500 500 100 gradient  0 0 0  log_World  0 0 0.5 0.25 0 0 
+#/musr/command globalfield Magnet_field 500 500 100 uniform  0 0 0  log_World  0 0 0.5 0 0 0 
+/musr/command globalfield Magnet_field 500 500 100 gradient  0 0 0  log_World  0 0 0.5 0.25 0 0 
 
 #/musr/command globalfield MIC_field 20 100 10 uniform  -450 -100 0 log_MICHole 0 0 -0.8 0 0 0 
 #/musr/command globalfield Elec_field 600 300 100 radial  0 300 0 log_World 0 0 0 2 0 0 
@@ -38,7 +38,7 @@
 #/musr/command construct box Quad 600 600 100 G4_Galactic 0 0 0 log_Mag norot dead 201 nofield 
 #/musr/command globalfield Quad_field 600 300 100 radial  0 300 0 log_Magnet 0 0 0 1 0 0 
 
-/musr/command globalfield  ElectrodeEField 0 0 0 fromfile 3DE electrodeEField.txt log_World 10
+#/musr/command globalfield  ElectrodeEField 0 0 0 fromfile 3DE electrodeEField.txt log_World 10
 #============================================================
 /musr/command visattributes log_World invisible
 #/musr/command visattributes log_MICHole invisible
@@ -204,10 +204,10 @@
 ###################################################################################
 #########################  V I S U A L I S A T I O N ##############################
 ###################################################################################
-/vis/disable
+#/vis/disable
 #/control/execute visFromToni.mac
 #/control/execute visDawn101.mac
-#/control/execute visVRML.mac
+/control/execute visVRML.mac
 ###################################################################################
 ######################### P A R T I C L E   G U N #################################
 ###################################################################################
@@ -236,4 +236,4 @@
 #/gps/ang/maxphi 2 deg
 ########################  B E A M    O N  #######################################
 #/run/beamOn 1000
-/run/beamOn 100
+/run/beamOn 1
