@@ -12,4 +12,4 @@ To look at the example, there are 3 ways:
 
 If you opened the file successfully, you should see somethiing like the following:
 
-![An example Jupyter notebook for analyzing FS-muonEDM data](run/figures/ExampleNotebook.png)
+![An example Jupyter notebook for analyzing FS-muonEDM data](../figures/ExampleNotebook.png)
