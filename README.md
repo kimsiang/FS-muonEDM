@@ -23,4 +23,4 @@ In addition to all the existing musrSim classes, several ad-hoc classes like the
 
 # Example event display
 
-![A muon in the gradient magnet](run/figures/GradientField-3D.jpg)
+![A muon in the gradient magnet](run/figures/EventDisplay.png)
