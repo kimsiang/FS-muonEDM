@@ -20,3 +20,7 @@ In addition to all the existing musrSim classes, several ad-hoc classes like the
 1) Compile FS-muonEDM package
 2) Go to the run folder
 3) Execute the command `../bin/Darwin-clang/musrSim 101.mac` (for Mac)
+
+# Example event display
+
+![A muon in the gradient magnet](run/figures/GradientField-3D.jpg)
