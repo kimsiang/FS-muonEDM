@@ -29,4 +29,4 @@ The muon track is displayed in cream color and the positron is in blue color.
 
 # Example radial field map
 
-![An example field map simulated using COMSOL](run/figures/SolenoidFieldMapZoomed.jpg)
+![An example field map simulated using COMSOL](run/figures/RadialEFieldCOMSOL.jpg)
