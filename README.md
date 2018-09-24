@@ -26,3 +26,7 @@ In addition to all the existing musrSim classes, several ad-hoc classes like the
 ![A muon in the gradient magnet](run/figures/EventDisplay.png)
 
 The muon track is displayed in cream color and the positron is in blue color.
+
+# Example radial field map
+
+![An example field map simulated using COMSOL](run/figures/SolenoidFieldMapZoomed.jpg)
