@@ -24,3 +24,5 @@ In addition to all the existing musrSim classes, several ad-hoc classes like the
 # Example event display
 
 ![A muon in the gradient magnet](run/figures/EventDisplay.png)
+
+The muon track is displayed in cream color and the positron is in blue color.
