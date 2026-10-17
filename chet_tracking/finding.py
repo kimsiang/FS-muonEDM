@@ -106,6 +106,12 @@ def _seeds(xp, pts, valid, geom: CHeTGeometry, cfg: RecoConfig):
     r0 = geom.orbit_radius_mm
     m &= good & (R > cfg.r_min_mm) & (R < cfg.r_max_mm)
     m &= (xp.abs(dc - R) < r0 + cfg.orbit_tol_mm) & (dc + R > r0 - cfg.orbit_tol_mm)
+    # keep only surviving triplets before the expensive hypothesis test
+    src = {f"{key}{q}": g[key][q] for key in ("x", "y", "z", "t") for q in range(3)}
+    src.update(xc=xc, yc=yc, R=R)
+    c, m, _ = compact(xp, m, src)
+    g = {key: (c[f"{key}0"], c[f"{key}1"], c[f"{key}2"]) for key in ("x", "y", "z", "t")}
+    xc, yc, R = c["xc"], c["yc"], c["R"]
 
     # z model.  Turn ordering of the three points is ambiguous for curlers, so
     # test 12 hypotheses (reference point x next-turn offsets of the other two)
@@ -234,18 +240,21 @@ def find_tracks(xp, pts, valid, geom: CHeTGeometry, cfg: RecoConfig):
     valid = xp.take_along_axis(valid, order, 1)
     counts = valid.sum(1)
     n_raw = int(xp.maximum(pts["hu"], pts["hv"]).max()) + 1
+    # process events in buckets of similar size (largest first)
+    perm = xp.argsort(-counts)
+    counts_h = [int(c) for c in counts[perm].tolist()]
     out_parts = []
     e0 = 0
     while e0 < E:
-        pmax_all = max(int(counts[e0:].max()), 3)
-        n_seed = min(cfg.max_seeds, max(len(_triplets(pmax_all, cfg.seed_window)), 1))
+        pmax_all = max(counts_h[e0], 3)
         n_tri = max(len(_triplets(pmax_all, cfg.seed_window)), 1)
-        sub = max(1, int(cfg.work_budget // max(n_seed * pmax_all, 12 * n_tri)))
+        n_seed = min(cfg.max_seeds, n_tri)
+        sub = max(1, int(cfg.work_budget // max(n_seed * pmax_all, 4 * n_tri)))
         e1 = min(E, e0 + sub)
-        v = valid[e0:e1]
-        pmax = max(int(v.sum(1).max()), 1)
-        v = v[:, :pmax]
-        p = {k: a[e0:e1, :pmax] for k, a in pts.items()}
+        idx = perm[e0:e1]
+        pmax = max(counts_h[e0], 1)
+        v = valid[idx, :pmax]
+        p = {k: a[idx, :pmax] for k, a in pts.items()}
         sd = _seeds(xp, p, v, geom, cfg)
         if sd is None:
             e0 = e1
@@ -259,7 +268,7 @@ def find_tracks(xp, pts, valid, geom: CHeTGeometry, cfg: RecoConfig):
             e0 = e1
             continue
         amask = assign.reshape(Es * T, -1)[rows]
-        ev = (rows // T) + e0
+        ev = idx[rows // T]
         hit_src = {k: xp.broadcast_to(a[:, None, :], (Es, T, a.shape[1])).reshape(Es * T, -1)[rows]
                    for k, a in p.items() if k in ("x", "y", "z", "t", "cyl", "truth", "ghost")}
         hits, hvalid, _ = compact(xp, amask, hit_src)

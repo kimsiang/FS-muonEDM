@@ -5,7 +5,7 @@ import numpy as np
 
 from .backend import StageTimer, device_name, get_xp, is_gpu, to_host
 from .finding import RecoConfig, find_tracks
-from .fitting import fit_tracks
+from .fitting import fit_tracks, remove_clones
 from .geometry import CHeTGeometry
 from .hits import build_crossings
 from .simulate import SimConfig, simulate_events
@@ -27,6 +27,8 @@ def reconstruct(xp, raw: dict, geom: CHeTGeometry, reco: RecoConfig | None = Non
         return None
     with timer("fitting"):
         trk = fit_tracks(xp, cand, geom, gd, reco)
+        keep = remove_clones(xp, trk)
+        trk = {k: v[keep] for k, v in trk.items()}
     return trk
 
 

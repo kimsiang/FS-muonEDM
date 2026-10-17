@@ -113,3 +113,21 @@ def _majority(xp, tr, m):
     n = xp.maximum(m.sum(1), 1)
     lab = xp.where(c > 0, lab, -1)
     return lab, c / n
+
+
+def remove_clones(xp, trk: dict, dr_mm: float = 6.0, dc_mm: float = 8.0, dh_mm: float = 4.0):
+    """Mask of tracks to keep: within one event, tracks with nearly identical
+    helices (centre, radius, pitch) are clones; keep the one with most hits."""
+    N = trk["R"].shape[0]
+    if N == 0:
+        return xp.zeros(0, dtype=bool)
+    ev = trk["event"]
+    same = ev[:, None] == ev[None, :]
+    close = (same & (xp.abs(trk["R"][:, None] - trk["R"][None, :]) < dr_mm)
+             & (xp.hypot(trk["xc"][:, None] - trk["xc"][None, :],
+                         trk["yc"][:, None] - trk["yc"][None, :]) < dc_mm)
+             & (xp.abs(trk["h"][:, None] - trk["h"][None, :]) < dh_mm))
+    nh = trk["nhits"].astype(xp.float64) - 1e-3 * trk["chi2_ndf"]
+    i = xp.arange(N)
+    better = (nh[None, :] > nh[:, None]) | ((nh[None, :] == nh[:, None]) & (i[None, :] < i[:, None]))
+    return ~(close & better).any(1)

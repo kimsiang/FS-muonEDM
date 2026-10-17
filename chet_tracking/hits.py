@@ -50,29 +50,37 @@ def build_crossings(xp, raw: dict, geom: CHeTGeometry, gd: dict, dt_ns: float = 
     pair = (ok[a] & ok[b] & is_u[a] & ~is_u[b] & (cyl[a] == cyl[b])
             & (xp.abs(t[a] - t[b]) < dt_ns))                      # [E,H,H]
 
-    c = xp.broadcast_to(cyl[a], pair.shape)
+    # compact the coincident pairs first: far fewer than H*H
+    H = ch.shape[1]
+    hu_all = xp.broadcast_to(xp.arange(H)[None, :, None], pair.shape)
+    hv_all = xp.broadcast_to(xp.arange(H)[None, None, :], pair.shape)
+    pr, pvalid, _ = compact(xp, pair, dict(hu=hu_all, hv=hv_all))
+    hu, hv = pr["hu"], pr["hv"]
+    take = lambda arr, i: xp.take_along_axis(arr, i, 1)   # noqa: E731
+    c = take(cyl, hu)
     r = gd["cyl_radius"][c]
     tn = gd["cyl_tan"][c]
+    phi_u, phi_v = take(phi_ch, hu), take(phi_ch, hv)
+    t_u, t_v = take(t, hu), take(t, hv)
+    tr_u, tr_v = take(tr, hu), take(tr, hv)
+
     K = geom.max_stereo_wraps()
     k = xp.arange(-K, K + 1, dtype=xp.float64)
-    dphi = (phi_ch[b] - phi_ch[a])[..., None] + TWO_PI * k         # [E,H,H,K]
-    z = dphi * (r / (2 * tn))[..., None]
-    sel = pair[..., None] & (xp.abs(z) <= geom.half_length_mm)
+    z = ((phi_v - phi_u)[..., None] + TWO_PI * k) * (r / (2 * tn))[..., None]   # [E,Q,K]
+    sel = pvalid[..., None] & (xp.abs(z) <= geom.half_length_mm)
 
-    phi = phi_ch[a][..., None] + z * (tn / r)[..., None]
+    phi = phi_u[..., None] + z * (tn / r)[..., None]
     rr = r[..., None]
     x, y = rr * xp.cos(phi), rr * xp.sin(phi)
     t_prop = (geom.readout_z_mm - z) / (gd["cyl_cos"][c][..., None] * geom.v_fiber)
-    tc = (0.5 * (t[a] + t[b]))[..., None] - t_prop
+    tc = (0.5 * (t_u + t_v))[..., None] - t_prop
     # truth: track slot if u and v come from the same positron, else -1.
     # ghost: u and v from different crossings (MC diagnostics only)
-    truth = xp.where(tr[a] == tr[b], tr[a], -1).astype(xp.int32)[..., None]
+    truth = xp.where(tr_u == tr_v, tr_u, -1).astype(xp.int32)[..., None]
     hid = raw.get("hid")
-    ghost = (xp.zeros(pair.shape, dtype=bool) if hid is None else (hid[a] != hid[b]))[..., None]
-    H = ch.shape[1]
-    hu = xp.broadcast_to(xp.arange(H)[None, :, None], pair.shape)[..., None]
-    hv = xp.broadcast_to(xp.arange(H)[None, None, :], pair.shape)[..., None]
-
+    ghost = (xp.zeros(hu.shape, dtype=bool) if hid is None
+             else take(hid, hu) != take(hid, hv))[..., None]
     pts, valid, _ = compact(xp, sel, dict(x=x, y=y, z=z, t=tc, cyl=c[..., None],
-                                          truth=truth, ghost=ghost, hu=hu, hv=hv))
+                                          truth=truth, ghost=ghost,
+                                          hu=hu[..., None], hv=hv[..., None]))
     return pts, valid
