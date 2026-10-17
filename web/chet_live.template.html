@@ -82,6 +82,13 @@ td.res { color: var(--mute); }
 .kpi .v { font-family: var(--serif); font-weight: 700; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
 .kpi .l { font-size: 12px; color: var(--mute); margin-top: 6px; }
 .kpi .ref { font-size: 11px; color: var(--ghost); }
+.d3 { display: grid; gap: 32px; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .d3 { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: start; } }
+#d3 { width: 100%; max-width: 100%; aspect-ratio: 4 / 5; display: block; cursor: grab; touch-action: none; }
+#d3:active { cursor: grabbing; }
+@media (min-width: 900px) { #d3 { aspect-ratio: 5 / 4; } }
+.render { min-width: 0; }
+.render img { width: 100%; max-width: 100%; height: auto; display: block; }
 footer { display: grid; gap: 6px; font-size: 12px; color: var(--mute); border-top: 1px solid var(--rule); padding-top: 16px; }
 footer a { color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .phase span { transition: none; } }
@@ -134,6 +141,26 @@ footer a { color: var(--ink); }
     </div>
   </section>
 
+  <section class="d3">
+    <div class="fig">
+      <h2>3D event display</h2>
+      <canvas id="d3" aria-label="Rotatable 3D view of the CHeT with the current event"></canvas>
+      <div class="legend">
+        <span><i class="sw" style="border-color:var(--accent)"></i>fitted helix</span>
+        <span><i class="sw" style="border-color:var(--cyan);border-top-style:dashed"></i>MC truth</span>
+        <span><i class="sw" style="border-color:var(--ink)"></i>fired fibres</span>
+        <span><i class="dot" style="background:var(--warn)"></i>space points on track</span>
+      </div>
+      <p class="note" id="d3note">Drag to rotate, scroll or pinch to zoom, double-click to reset. The view turns slowly on its own while you leave it alone.
+        Every 6th fibre of each stereo layer is drawn; a fired SiPM lights the middle fibre of its group of four.</p>
+    </div>
+    <figure class="fig render" style="margin:0">
+      <h2>Rendered in Blender</h2>
+      <img src="data:image/jpeg;base64,/*__BLENDER_JPG__*/" alt="Blender Cycles render of the CHeT cut away on the camera side, with fired fibres, space points and a curling positron helix" width="960" height="1200">
+      <figcaption class="note">One reconstructed event (p = 34.2 MeV/c fitted, 34.8 true) rendered with Cycles from <code>scripts/blender_event_display.py</code>. Fibres on the camera side are cut away.</figcaption>
+    </figure>
+  </section>
+
   <section class="lower">
     <div class="tbl">
       <div class="eyebrow" style="margin-bottom:10px">This event</div>
@@ -162,6 +189,7 @@ footer a { color: var(--ink); }
   </footer>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 /*__ENGINE__*/
 </script>
@@ -395,9 +423,129 @@ footer a { color: var(--ink); }
     s.textContent = n ? `event ${stats.n} · ${n} track${n > 1 ? "s" : ""} · ${rec.ms.toFixed(1)} ms` :
       `event ${stats.n} · no track (${ev.tracks[0].ncross} crossings)`;
   }
+  // ------------------------------------------------------------- 3D view
+  // detector (x, y, z) -> three.js (x, z, -y): the solenoid axis points up; 1 unit = 10 mm
+  const V3 = (x, y, z) => new THREE.Vector3(x / 10, z / 10, -y / 10);
+  const D3 = { ok: false, dirty: true };
+  function init3D() {
+    if (!window.THREE) { $("d3note").textContent = "The 3D view needs the three.js library, which did not load."; return; }
+    const canvas = $("d3");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(css("--navy"));
+    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 500);
+    const stat = new THREE.Group(), dyn = new THREE.Group();
+    scene.add(stat, dyn);
+    // stereo fibres, one LineSegments per layer
+    const nz = 24;
+    g.cyl.forEach((c) => {
+      [1, -1].forEach((sgn, s) => {
+        const rr = c.r + (s ? 0.6 : 0), pos = [];
+        for (let f = 0; f < c.nfib; f += 6) {
+          const p0 = (f + 0.5) * c.dphi;
+          for (let k = 0; k < nz; k++) {
+            for (const kk of [k, k + 1]) {
+              const z = -g.L + (2 * g.L * kk) / nz, ph = p0 + sgn * z * c.tan / c.r, v = V3(rr * Math.cos(ph), rr * Math.sin(ph), z);
+              pos.push(v.x, v.y, v.z);
+            }
+          }
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        stat.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x2a4f86, transparent: true, opacity: 0.32 })));
+      });
+      [-g.L, g.L].forEach((z) => stat.add(ringLine(c.r, z, 0x5d7ea8, 0.7)));
+    });
+    stat.add(ringLine(g.r0, 0, COL.cyan, 0.9));
+    Object.assign(D3, { ok: true, renderer, scene, camera, dyn, az: -0.7, el: 0.5, dist: 84, auto: true, last: 0 });
+    // pointer orbit
+    let drag = null;
+    canvas.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY }; D3.auto = false; canvas.setPointerCapture(e.pointerId); });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      D3.az -= (e.clientX - drag.x) * 0.008; D3.el = Math.max(-1.4, Math.min(1.4, D3.el + (e.clientY - drag.y) * 0.008));
+      drag = { x: e.clientX, y: e.clientY }; D3.dirty = true;
+    });
+    const end = () => { drag = null; clearTimeout(D3.resume); D3.resume = setTimeout(() => (D3.auto = !reduce), 4000); };
+    canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
+    canvas.addEventListener("wheel", (e) => { e.preventDefault(); D3.dist = Math.max(30, Math.min(220, D3.dist * Math.exp(e.deltaY * 0.001))); D3.dirty = true; }, { passive: false });
+    canvas.addEventListener("dblclick", () => { Object.assign(D3, { az: -0.7, el: 0.5, dist: 84, dirty: true }); });
+    D3.auto = !reduce;
+    requestAnimationFrame(loop3D);
+  }
+  function ringLine(r, z, color, opacity) {
+    const pts = []; for (let k = 0; k <= 120; k++) { const a = TWO_PI * k / 120; pts.push(V3(r * Math.cos(a), r * Math.sin(a), z)); }
+    return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: true, opacity }));
+  }
+  function helixPts(xc, yc, Rr, h, psiV, zV, umax) {
+    const pts = []; const n = Math.max(40, Math.ceil(umax * 30));
+    for (let k = 0; k <= n; k++) {
+      const u = umax * k / n, z = zV + h * u;
+      if (Math.abs(z) > g.L) break;
+      pts.push(V3(xc + Rr * Math.cos(psiV - u), yc + Rr * Math.sin(psiV - u), z));
+    }
+    return pts;
+  }
+  function update3D() {
+    if (!D3.ok) return;
+    D3.dyn.children.slice().forEach((o) => { D3.dyn.remove(o); o.geometry && o.geometry.dispose(); o.material && o.material.dispose(); });
+    if (!ev) return;
+    // fired fibres
+    const pos = [], nz = 24;
+    ev.raw.forEach((hh) => {
+      const c = g.cyl[hh.cyl], sgn = hh.s ? -1 : 1, rr = c.r + (hh.s ? 0.6 : 0), p0 = c.chPhi[hh.ch];
+      for (let k = 0; k < nz; k++) for (const kk of [k, k + 1]) {
+        const z = -g.L + (2 * g.L * kk) / nz, ph = p0 + sgn * z * c.tan / c.r, v = V3(rr * Math.cos(ph), rr * Math.sin(ph), z);
+        pos.push(v.x, v.y, v.z);
+      }
+    });
+    const fg = new THREE.BufferGeometry(); fg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    D3.dyn.add(new THREE.LineSegments(fg, new THREE.LineBasicMaterial({ color: COL.ink, transparent: true, opacity: 0.55 })));
+    // truth helices
+    ev.tracks.forEach((t) => {
+      const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(helixPts(t.cx, t.cy, t.R, t.h, t.psi0, t.vz, TWO_PI * 3)),
+        new THREE.LineDashedMaterial({ color: COL.cyan, dashSize: 0.5, gapSize: 0.35 }));
+      ln.computeLineDistances(); D3.dyn.add(ln);
+    });
+    if (phase < 1 || !rec) return;
+    const onTrack = new Set(); rec.tracks.forEach((t) => t.hits.forEach((p) => onTrack.add(p)));
+    const showG = $("ghosts").checked, gp = [];
+    rec.pts.forEach((p) => { if (!(phase >= 3 && onTrack.has(p)) && (showG || !p.ghost)) { const v = V3(p.x, p.y, p.z); gp.push(v.x, v.y, v.z); } });
+    const pg = new THREE.BufferGeometry(); pg.setAttribute("position", new THREE.Float32BufferAttribute(gp, 3));
+    D3.dyn.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: COL.ghost, size: 0.35 })));
+    if (phase < 3) return;
+    const sph = new THREE.SphereGeometry(0.22, 12, 8), sm = new THREE.MeshBasicMaterial({ color: COL.warn });
+    rec.tracks.forEach((t) => {
+      t.hits.forEach((p) => { const m = new THREE.Mesh(sph, sm); m.position.copy(V3(p.x, p.y, p.z)); D3.dyn.add(m); });
+      const Umax = Math.max(...t.U.filter((u, i) => t.w[i]));
+      const pts = helixPts(t.xc, t.yc, t.R, t.h, Math.atan2(t.vy - t.yc, t.vx - t.xc), t.vz, Math.max(Umax - t.Uv, 0.5) + 0.3);
+      if (pts.length > 1) D3.dyn.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 2, 0.09, 6, false),
+        new THREE.MeshBasicMaterial({ color: COL.acc })));
+      const vm = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), new THREE.MeshBasicMaterial({ color: COL.cyan }));
+      vm.position.copy(V3(t.vx, t.vy, t.vz)); D3.dyn.add(vm);
+    });
+  }
+  function loop3D(ts) {
+    requestAnimationFrame(loop3D);
+    if (!D3.ok || document.hidden) return;
+    const c = D3.renderer.domElement, w = c.clientWidth, h = c.clientHeight;
+    if (c.width !== Math.round(w * D3.renderer.getPixelRatio()) || c.height !== Math.round(h * D3.renderer.getPixelRatio())) {
+      D3.renderer.setSize(w, h, false); D3.camera.aspect = w / h; D3.camera.updateProjectionMatrix(); D3.dirty = true;
+    }
+    if (D3.auto) { D3.az += ((ts - (D3.last || ts)) / 1000) * 0.18; D3.dirty = true; }
+    D3.last = ts;
+    if (!D3.dirty) return;
+    const { az, el, dist } = D3;
+    D3.camera.position.set(dist * Math.cos(el) * Math.cos(az), dist * Math.sin(el), dist * Math.cos(el) * Math.sin(az));
+    D3.camera.lookAt(0, 0, 0);
+    D3.renderer.render(D3.scene, D3.camera);
+    D3.dirty = false;
+  }
+
   function render() {
     for (let i = 0; i < 4; i++) $("ph" + i).classList.toggle("on", i === phase);
-    drawXY(); drawZU(); fillTable(); status();
+    drawXY(); drawZU(); fillTable(); status(); update3D(); D3.dirty = true;
   }
 
   // ------------------------------------------------------------- loop
@@ -424,6 +572,7 @@ footer a { color: var(--ink); }
   window.addEventListener("resize", () => { drawXY(); drawZU(); });
   document.addEventListener("visibilitychange", () => { if (document.hidden) clearInterval(timer); else schedule(); });
 
+  init3D();
   // warm start: a handful of events so the panel opens filled in
   for (let i = 0; i < 30; i++) { ev = simulate(g, R, { mult: 1 }); rec = reconstruct(g, ev.raw); phase = 3; updateStats(); }
   render();
