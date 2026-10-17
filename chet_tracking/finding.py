@@ -41,6 +41,7 @@ class RecoConfig:
     sigma_xy_mm: float = 0.8
     outlier_nsigma: float = 4.0
     fit_iterations: int = 5
+    dtype: str = "float64"          # "float32" is much faster on consumer GPUs
 
 
 @lru_cache(maxsize=256)
@@ -55,7 +56,7 @@ def _triplets(n: int, window: int) -> np.ndarray:
     return t[t[:, 2] < n]
 
 
-def _hypotheses(xp):
+def _hypotheses(xp, dtype):
     ref, shift = [], []
     for r in range(3):
         others = [q for q in range(3) if q != r]
@@ -65,7 +66,7 @@ def _hypotheses(xp):
                 sh[others[0]], sh[others[1]] = na, nb
                 ref.append(r)
                 shift.append(sh)
-    return xp.asarray(np.array(ref)), xp.asarray(np.array(shift, dtype=np.float64))
+    return xp.asarray(np.array(ref)), xp.asarray(np.array(shift, dtype=dtype))
 
 
 def _circle3(x1, y1, x2, y2, x3, y3, xp):
@@ -121,7 +122,7 @@ def _seeds(xp, pts, valid, geom: CHeTGeometry, cfg: RecoConfig):
     Z3 = xp.stack(g["z"], -1)
     T3 = xp.stack(g["t"], -1)
     psi3 = xp.arctan2(Y3 - yc[..., None], X3 - xc[..., None])
-    REF, SHIFT = _hypotheses(xp)
+    REF, SHIFT = _hypotheses(xp, R.dtype)
     base = xp.mod(psi3[..., :, None] - psi3[..., None, :], TWO_PI)        # [..., ref, q]
     dpsi = base[..., REF, :] + TWO_PI * SHIFT                              # [..., H, 3]
     Zh = Z3[..., None, :]

@@ -21,6 +21,8 @@ def reconstruct(xp, raw: dict, geom: CHeTGeometry, reco: RecoConfig | None = Non
         raw = dict(raw, truth=xp.full(raw["ch"].shape, -1, dtype=xp.int32))
     with timer("crossings"):
         pts, pvalid = build_crossings(xp, raw, geom, gd, reco.crossing_dt_ns)
+        if reco.dtype != "float64":
+            pts = {k: (v.astype(reco.dtype) if v.dtype.kind == "f" else v) for k, v in pts.items()}
     with timer("finding"):
         cand = find_tracks(xp, pts, pvalid, geom, reco)
     if cand is None:

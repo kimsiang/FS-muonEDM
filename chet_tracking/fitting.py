@@ -26,7 +26,7 @@ def _circle_gn(xp, x, y, w, xc, yc, R, n_iter, sigma):
         JTJ = xp.einsum("np,npi,npj->nij", wt, J, J)
         JTr = xp.einsum("np,npi,np->ni", wt, J, res)
         lam = 1e-9 * xp.trace(JTJ, axis1=1, axis2=2)[:, None, None] + 1e-12
-        delta = xp.linalg.solve(JTJ + lam * xp.eye(3)[None], -JTr[..., None])[..., 0]
+        delta = xp.linalg.solve(JTJ + lam * xp.eye(3, dtype=x.dtype)[None], -JTr[..., None])[..., 0]
         xc, yc, R = xc + delta[:, 0], yc + delta[:, 1], R + delta[:, 2]
     return xc, yc, xp.abs(R)
 
@@ -51,8 +51,9 @@ def _z_fit(xp, z, dpsi, wz, a, h, max_turn, n_iter=3):
 
 def fit_tracks(xp, cand: dict, geom: CHeTGeometry, gd: dict, cfg: RecoConfig):
     x, y, z = cand["x"], cand["y"], cand["z"]
-    w = cand["hit_valid"].astype(xp.float64)
-    sz = gd["cyl_sigma_z"][cand["cyl"]]
+    fdt = x.dtype
+    w = cand["hit_valid"].astype(fdt)
+    sz = gd["cyl_sigma_z"][cand["cyl"]].astype(fdt)
     xc, yc, R = cand["seed_xc"], cand["seed_yc"], cand["seed_R"]
     a, h = cand["seed_a"], cand["seed_h"]
     x_ref, y_ref = cand["seed_x_ref"], cand["seed_y_ref"]
