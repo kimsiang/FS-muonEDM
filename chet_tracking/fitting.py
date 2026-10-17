@@ -25,8 +25,12 @@ def _circle_gn(xp, x, y, w, xc, yc, R, n_iter, sigma):
         J = xp.stack([-dx / rho, -dy / rho, -xp.ones_like(rho)], axis=-1)    # [N,P,3]
         JTJ = xp.einsum("np,npi,npj->nij", wt, J, J)
         JTr = xp.einsum("np,npi,np->ni", wt, J, res)
-        lam = 1e-9 * xp.trace(JTJ, axis1=1, axis2=2)[:, None, None] + 1e-12
-        delta = xp.linalg.solve(JTJ + lam * xp.eye(3, dtype=x.dtype)[None], -JTr[..., None])[..., 0]
+        eye = xp.eye(3, dtype=x.dtype)[None]
+        lam = 1e-6 * xp.trace(JTJ, axis1=1, axis2=2)[:, None, None] + 1e-9
+        good = (w.sum(1) >= 3) & xp.isfinite(JTJ).all((1, 2)) & xp.isfinite(JTr).all(1)
+        A = xp.where(good[:, None, None], JTJ + lam * eye, eye)
+        rhs = xp.where(good[:, None], -JTr, 0.0)
+        delta = xp.linalg.solve(A, rhs[..., None])[..., 0]
         xc, yc, R = xc + delta[:, 0], yc + delta[:, 1], R + delta[:, 2]
     return xc, yc, xp.abs(R)
 
