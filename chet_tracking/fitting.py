@@ -11,7 +11,7 @@ from __future__ import annotations
 import numpy as np
 
 from .finding import RecoConfig
-from .geometry import K_PT, CHeTGeometry
+from .geometry import C_MM_PER_NS, K_PT, CHeTGeometry
 
 TWO_PI = 2 * np.pi
 
@@ -31,26 +31,42 @@ def _circle_gn(xp, x, y, w, xc, yc, R, n_iter, sigma):
     return xc, yc, xp.abs(R)
 
 
-def _z_fit(xp, z, dpsi, wz, a, h, max_turn, n_iter=3):
+def _zt_fit(xp, z, t, dpsi, w, sz, st, R, a, h, max_turn, n_iter=4):
+    """Joint z / time-of-flight fit along the unwrapped turning angle U.
+
+    z_i = a + h U_i ,  t_i = t0 + L U_i / c ,  L = sqrt(R^2 + h^2) (beta ~ 1)
+    The turn number of every hit (U_i = dpsi_i + 2 pi n_i) is chosen to
+    minimise the combined z and time residual, which resolves the up/down
+    (h -> -h) mirror ambiguity of curling positrons.
+    """
+    nn = xp.arange(-1, max_turn + 1, dtype=z.dtype)
+    Un = dpsi[..., None] + TWO_PI * nn                          # [N,P,K]
+    wz, wt = w / sz**2, w / st**2
+    L = xp.sqrt(R**2 + h**2) / C_MM_PER_NS
+    t0 = (wt * (t - L[:, None] * dpsi)).sum(1) / xp.maximum(wt.sum(1), 1e-30)
     for _ in range(n_iter):
-        pitch = TWO_PI * h[:, None]
-        safe = xp.abs(pitch) > 1e-3
-        n = xp.where(safe, xp.rint((z - a[:, None] - h[:, None] * dpsi) / xp.where(safe, pitch, 1.0)), 0.0)
-        n = xp.clip(n, -1, max_turn)
-        U = dpsi + TWO_PI * n
+        cz = (z[..., None] - a[:, None, None] - h[:, None, None] * Un) / sz[..., None]
+        ct = (t[..., None] - t0[:, None, None] - L[:, None, None] * Un) / st
+        best = xp.argmin(cz**2 + ct**2, axis=-1)[..., None]
+        U = xp.take_along_axis(Un, best, -1)[..., 0]
         sw = wz.sum(1)
-        su, sz = (wz * U).sum(1), (wz * z).sum(1)
+        su, szz = (wz * U).sum(1), (wz * z).sum(1)
         suu, suz = (wz * U * U).sum(1), (wz * U * z).sum(1)
         det = sw * suu - su**2
         ok = det > 1e-9 * xp.maximum(sw * suu, 1e-30)
         det = xp.where(ok, det, 1.0)
-        h = xp.where(ok, (sw * suz - su * sz) / det, h)
-        a = xp.where(ok, (suu * sz - su * suz) / det, a)
-    return a, h, U
+        h = xp.where(ok, (sw * suz - su * szz) / det, h)
+        a = xp.where(ok, (suu * szz - su * suz) / det, a)
+        L = xp.sqrt(R**2 + h**2) / C_MM_PER_NS
+        t0 = (wt * (t - L[:, None] * U)).sum(1) / xp.maximum(wt.sum(1), 1e-30)
+    rz = (z - a[:, None] - h[:, None] * U) / sz
+    rt = (t - t0[:, None] - L[:, None] * U) / st
+    chi2 = (w * (rz**2 + rt**2)).sum(1)
+    return a, h, t0, U, rz, rt, chi2
 
 
 def fit_tracks(xp, cand: dict, geom: CHeTGeometry, gd: dict, cfg: RecoConfig):
-    x, y, z = cand["x"], cand["y"], cand["z"]
+    x, y, z, t = cand["x"], cand["y"], cand["z"], cand["t"]
     fdt = x.dtype
     w = cand["hit_valid"].astype(fdt)
     sz = gd["cyl_sigma_z"][cand["cyl"]].astype(fdt)
@@ -63,17 +79,28 @@ def fit_tracks(xp, cand: dict, geom: CHeTGeometry, gd: dict, cfg: RecoConfig):
         psi = xp.arctan2(y - yc[:, None], x - xc[:, None])
         psi_ref = xp.arctan2(y_ref - yc, x_ref - xc)
         dpsi = xp.mod(psi_ref[:, None] - psi, TWO_PI)
-        a, h, U = _z_fit(xp, z, dpsi, w / sz**2, a, h, cfg.max_turn_index)
+        # both up/down hypotheses, keep the better joint z + time fit
+        best = None
+        for sign in (1.0, -1.0):
+            res = _zt_fit(xp, z, t, dpsi, w, sz, cfg.sigma_t_ns, R, a, sign * h, cfg.max_turn_index)
+            if best is None:
+                best = res
+            else:
+                better = res[-1] < best[-1]
+                best = tuple(xp.where(better[:, None] if r.ndim == 2 else better, r, b)
+                             for r, b in zip(res, best))
+        a, h, t0, U, r_z, r_t, _ = best
         r_xy = (xp.hypot(x - xc[:, None], y - yc[:, None]) - R[:, None]) / cfg.sigma_xy_mm
-        r_z = (z - a[:, None] - h[:, None] * U) / sz
-        keep = (xp.abs(r_xy) < cfg.outlier_nsigma) & (xp.abs(r_z) < cfg.outlier_nsigma)
+        keep = ((xp.abs(r_xy) < cfg.outlier_nsigma) & (xp.abs(r_z) < cfg.outlier_nsigma)
+                & (xp.abs(r_t) < cfg.outlier_nsigma))
         w_new = w * keep
         enough = w_new.sum(1) >= 3
         w = xp.where(enough[:, None], w_new, w)
 
+    R = xp.maximum(R, 1e-6)     # empty candidate slots
     nh = w.sum(1)
-    chi2 = (w * (r_xy**2 + r_z**2)).sum(1)
-    ndf = xp.maximum(2 * nh - 5, 1)
+    chi2 = (w * (r_xy**2 + r_z**2 + r_t**2)).sum(1)
+    ndf = xp.maximum(3 * nh - 6, 1)
 
     # --- vertex on the muon orbit and kinematics ------------------------------
     U_masked = xp.where(w > 0, U, xp.inf)
@@ -100,9 +127,9 @@ def fit_tracks(xp, cand: dict, geom: CHeTGeometry, gd: dict, cfg: RecoConfig):
     truth, purity = _majority(xp, cand["truth"], w > 0)
     ghost_frac = ((cand["ghost"] & (w > 0)).sum(1) / xp.maximum(nh, 1)) if "ghost" in cand else xp.zeros_like(nh)
     return dict(event=cand["event"], p=p, pt=pt, pz=pz, theta=theta, phi=phi,
-                vx=xc + R * xp.cos(psi_v), vy=yc + R * xp.sin(psi_v), vz=z_v,
+                t0=t0, vx=xc + R * xp.cos(psi_v), vy=yc + R * xp.sin(psi_v), vz=z_v,
                 xc=xc, yc=yc, R=R, h=h, nhits=nh.astype(xp.int32),
-                chi2_ndf=chi2 / ndf, truth=truth, purity=purity, ghost_frac=ghost_frac)
+                hit_w=w > 0, chi2_ndf=chi2 / ndf, truth=truth, purity=purity, ghost_frac=ghost_frac)
 
 
 def _majority(xp, tr, m):

@@ -30,7 +30,7 @@ def reconstruct(xp, raw: dict, geom: CHeTGeometry, reco: RecoConfig | None = Non
     with timer("fitting"):
         trk = fit_tracks(xp, cand, geom, gd, reco)
         keep = remove_clones(xp, trk)
-        trk = {k: v[keep] for k, v in trk.items()}
+        trk = {k: v[keep] for k, v in trk.items() if k != "hit_w"}
     return trk
 
 

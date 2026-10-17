@@ -39,8 +39,11 @@ class RecoConfig:
     max_seeds: int = 3000
     work_budget: float = 4e6        # max (#events x #seeds x #points) per sub-batch
     sigma_xy_mm: float = 0.8
+    sigma_t_ns: float = 0.4         # crossing time = mean of u/v SiPM times
     outlier_nsigma: float = 4.0
     fit_iterations: int = 5
+    candidates_per_step: int = 6    # seeds fitted per event in each greedy step
+    chi2_penalty: float = 2.0       # quality = inliers - penalty * chi2/ndf
     dtype: str = "float64"          # "float32" is much faster on consumer GPUs
 
 
@@ -181,11 +184,27 @@ def _compat(xp, pts, valid, seeds, svalid, cfg: RecoConfig):
     return ok, chi
 
 
-def _greedy(xp, pts, valid, seeds, compat, chi_all, n_raw, cfg: RecoConfig):
-    """Pick the seed with most free compatible points, claim its raw SiPM hits,
-    and drop every other space point (ghost) built from a claimed hit."""
+def _resolve_shared(xp, sel, chi, hu, hv):
+    """Within one candidate, two points sharing a raw hit: keep the better one."""
+    P = sel.shape[-1]
+    share = ((hu[..., :, None] == hu[..., None, :]) | (hv[..., :, None] == hv[..., None, :]))
+    share = share & sel[..., :, None] & sel[..., None, :]
+    idx = xp.arange(P)
+    worse = (chi[..., :, None] > chi[..., None, :]) | (
+        (chi[..., :, None] == chi[..., None, :]) & (idx[:, None] > idx[None, :]))
+    return sel & ~(share & worse).any(-1)
+
+
+def _greedy(xp, pts, valid, seeds, compat, chi_all, n_raw, geom, cfg: RecoConfig):
+    """Iteratively: take the top-K seeds of every event, build and fit their
+    hit sets (batched), keep the best-quality candidate, claim its raw SiPM
+    hits and drop every other space point (ghost) built from a claimed hit."""
+    from .fitting import fit_tracks   # local import (fitting imports RecoConfig)
+
     E, P = valid.shape
-    T = cfg.max_tracks
+    S = compat.shape[1]
+    T, K = cfg.max_tracks, min(cfg.candidates_per_step, S)
+    gd = geom.device_tables(xp)
     free = valid.copy()
     ar = xp.arange(E)
     hu, hv = pts["hu"], pts["hv"]
@@ -195,26 +214,32 @@ def _greedy(xp, pts, valid, seeds, compat, chi_all, n_raw, cfg: RecoConfig):
     for it in range(T):
         cf = compat & free[:, None, :]
         nfree = cf.sum(-1)
-        # tie-break equal hit counts by the summed normalised residuals
         score = nfree - 1e-3 * xp.where(cf, chi_all, 0.0).sum(-1)
-        best = xp.argmax(score, axis=1)
-        ok = nfree[ar, best] >= cfg.min_hits
+        top = xp.argsort(-score, axis=1)[:, :K]                          # [E,K]
+        sel = xp.take_along_axis(cf, top[..., None], 1)                  # [E,K,P]
+        chi = xp.take_along_axis(chi_all, top[..., None], 1)
+        sel = _resolve_shared(xp, sel, chi, hu[:, None, :], hv[:, None, :])
+        nsel = sel.sum(-1)
+        if not bool((nsel >= cfg.min_hits).any()):
+            break
+        # batched fit of all E*K candidates
+        rep = lambda a: xp.broadcast_to(a[:, None, :], (E, K, P)).reshape(E * K, P)  # noqa: E731
+        cand = {k: rep(pts[k]) for k in ("x", "y", "z", "t", "cyl", "truth")}
+        cand["hit_valid"] = sel.reshape(E * K, P)
+        cand["event"] = xp.repeat(ar, K)
+        for k in ("xc", "yc", "R", "h", "a", "x_ref", "y_ref"):
+            cand["seed_" + k] = xp.take_along_axis(seeds[k], top, 1).reshape(-1)
+        fit = fit_tracks(xp, cand, geom, gd, cfg)
+        inl = fit["hit_w"].reshape(E, K, P) & sel
+        nin = inl.sum(-1)
+        q = nin - cfg.chi2_penalty * fit["chi2_ndf"].reshape(E, K)
+        q = xp.where(nin >= cfg.min_hits, q, -xp.inf)
+        kb = xp.argmax(q, axis=1)
+        ok = xp.isfinite(q[ar, kb])
         if not bool(ok.any()):
             break
-        sel = compat[ar, best] & free & ok[:, None]
-        # within the track, two points sharing a raw hit: keep the better one
-        sp = {k: v[ar, best][:, None] for k, v in seeds.items()}
-        rxy, rz, _ = _residuals(xp, pts["x"], pts["y"], pts["z"], pts["t"], sp, cfg)
-        chi = (rxy / cfg.sigma_xy_mm) ** 2 + (rz / (0.5 * cfg.tol_z_mm)) ** 2
-        share = ((hu[:, :, None] == hu[:, None, :]) | (hv[:, :, None] == hv[:, None, :]))
-        share &= sel[:, :, None] & sel[:, None, :]
-        idx = xp.arange(P)
-        worse = (chi[:, :, None] > chi[:, None, :]) | (
-            (chi[:, :, None] == chi[:, None, :]) & (idx[None, :, None] > idx[None, None, :]))
-        sel &= ~(share & worse).any(-1)
-        ok &= sel.sum(1) >= cfg.min_hits
-        sel &= ok[:, None]
-        # claim raw hits
+        best = top[ar, kb]
+        sel = inl[ar, kb] & ok[:, None]
         used = xp.zeros((E, n_raw), dtype=bool)
         eb, pb = xp.nonzero(sel)
         used[eb, hu[eb, pb]] = True
@@ -262,7 +287,7 @@ def find_tracks(xp, pts, valid, geom: CHeTGeometry, cfg: RecoConfig):
             continue
         seeds, svalid = sd
         compat, chi_all = _compat(xp, p, v, seeds, svalid, cfg)
-        assign, tvalid, tseed = _greedy(xp, p, v, seeds, compat, chi_all, n_raw, cfg)
+        assign, tvalid, tseed = _greedy(xp, p, v, seeds, compat, chi_all, n_raw, geom, cfg)
         Es, T = tvalid.shape
         rows = xp.nonzero(tvalid.reshape(-1))[0]
         if rows.size == 0:
