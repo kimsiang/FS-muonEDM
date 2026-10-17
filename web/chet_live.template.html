@@ -2,580 +2,766 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500&display=swap">
 <style>
-/* Layout: navy instrument panel. Headline block top-left, transverse view + z-vs-turn plot side by side
-   (stacked on phones), hairline truth/reco table and running performance below. One accent: electric blue. */
+/* Layout: full-bleed WebGL stage of the CHeT; HUD panels float over it at the four corners with a pipeline
+   tracker bottom-centre. Below 900 px the stage shrinks to 62vh and the panels stack under it.
+   Palette: deep navy ground, electric blue = reconstruction, cyan = MC truth / muons, amber = hits. */
 :root {
+  --ground: #030E17;
   --navy: #051C2C;
-  --ink: #EAF2F8;
-  --mute: #8FA6B8;
-  --rule: rgba(234, 242, 248, 0.22);
-  --accent: #2251FF;       /* fitted track */
-  --accent-hi: #5C7DFF;    /* accent text on navy */
-  --cyan: #00A9F4;         /* MC truth */
-  --ghost: #4C6375;
-  --warn: #F2B544;
-  --serif: "Playfair Display", "Bower", Georgia, "Times New Roman", serif;
+  --glass: rgba(6, 26, 42, 0.62);
+  --glass-hi: rgba(10, 40, 66, 0.78);
+  --edge: rgba(110, 160, 255, 0.22);
+  --edge-hi: rgba(110, 160, 255, 0.55);
+  --ink: #E6F0FA;
+  --mute: #7F98AE;
+  --dim: #4A6378;
+  --accent: #2251FF;
+  --accent-hi: #6E8BFF;
+  --cyan: #00A9F4;
+  --amber: #FFB547;
+  --red: #FF5C6C;
+  --hud: "Chakra Petch", "Bahnschrift", "DIN Alternate", "Arial Narrow", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --sans: "Inter", "Helvetica Neue", Arial, system-ui, sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: dark;
 }
-html, body { background: var(--navy); color: var(--ink); }
-body { font-family: var(--sans); font-weight: 300; font-size: 15px; line-height: 1.5; }
-.wrap { max-width: 1180px; margin: 0 auto; padding-block: 5vh 6vh;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: grid; gap: 40px; }
-@media (min-width: 900px) { .wrap { padding-left: max(7%, env(safe-area-inset-left, 0px)); padding-right: max(7%, env(safe-area-inset-right, 0px)); } }
-.eyebrow { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); font-weight: 500; }
-h1 { font-family: var(--serif); font-weight: 700; font-size: clamp(32px, 5vw, 52px); line-height: 1.08;
-  margin: 10px 0 14px; text-wrap: balance; max-width: 18ch; }
-.lede { max-width: 62ch; color: var(--mute); margin: 0; }
-.lede b { color: var(--ink); font-weight: 500; }
-header { display: grid; gap: 0; }
+html, body { height: 100%; background: var(--ground); color: var(--ink); }
+body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x: hidden; }
 
-.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
-button, select { font: inherit; font-size: 13px; font-weight: 500; color: var(--ink); background: transparent;
-  border: 1px solid var(--rule); border-radius: 999px; padding: 7px 16px; cursor: pointer; }
-button:hover, select:hover { border-color: var(--ink); }
-button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
-button.primary { background: var(--accent); border-color: var(--accent); }
-select { padding-right: 12px; }
-label.tog { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--mute); cursor: pointer; }
-input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
-.pill { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.02em;
-  border-radius: 999px; padding: 5px 12px; background: var(--accent); color: #fff; font-variant-numeric: tabular-nums; }
-.pill.miss { background: transparent; border: 1px solid var(--warn); color: var(--warn); }
-.pill.wait { background: transparent; border: 1px solid var(--rule); color: var(--mute); }
+.app { position: relative; height: 100%; min-height: 560px; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 40%, #0A2A44 0%, var(--navy) 38%, var(--ground) 100%); }
+#stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.vignette { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%); }
+.scan { position: absolute; inset: 0; pointer-events: none; opacity: 0.05;
+  background: repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px); }
 
-.stage { display: grid; gap: 32px; grid-template-columns: 1fr; }
-@media (min-width: 900px) { .stage { grid-template-columns: 1.05fr 1fr; align-items: start; } }
-.fig { min-width: 0; display: grid; gap: 10px; }
-.fig h2 { font-family: var(--serif); font-weight: 600; font-size: 20px; margin: 0; }
-.fig canvas { width: 100%; max-width: 100%; display: block; }
+/* HUD frame */
+.hud { position: absolute; inset: 0; pointer-events: none;
+  padding-block: 18px; padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+.hud > * { pointer-events: auto; }
+.panel { position: absolute; background: var(--glass); border: 1px solid var(--edge);
+  backdrop-filter: blur(10px) saturate(130%); -webkit-backdrop-filter: blur(10px) saturate(130%);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  padding: 12px 14px 14px; }
+.panel::before { content: ""; position: absolute; left: 0; top: 0; width: 28px; height: 2px; background: var(--accent); }
+.ptitle { display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  font-family: var(--hud); font-weight: 600; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); margin-bottom: 8px; }
+.ptitle b { color: var(--ink); font-weight: 600; }
+.ptitle .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; color: var(--dim); text-transform: none; }
+
+/* top-left identity */
+.brand { left: max(18px, env(safe-area-inset-left, 0px)); top: 18px; position: absolute; }
+.brand .eyebrow { font-family: var(--hud); font-size: 11px; letter-spacing: 0.24em; color: var(--cyan); text-transform: uppercase; }
+.brand h1 { font-family: var(--hud); font-weight: 700; font-size: clamp(26px, 3.2vw, 40px); line-height: 1; margin: 6px 0 4px; letter-spacing: 0.02em;
+  text-shadow: 0 0 24px rgba(34, 81, 255, 0.55); }
+.brand h1 span { color: var(--accent-hi); }
+.brand .sub { font-family: var(--mono); font-size: 11px; color: var(--mute); max-width: 34ch; }
+.evtno { display: flex; align-items: baseline; gap: 10px; margin-top: 14px; }
+.evtno .n { font-family: var(--mono); font-weight: 700; font-size: 34px; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.evtno .l { font-family: var(--hud); font-size: 11px; letter-spacing: 0.2em; color: var(--mute); text-transform: uppercase; }
+.badge { display: inline-flex; align-items: center; gap: 7px; font-family: var(--hud); font-weight: 600; font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; padding: 4px 10px; border: 1px solid currentColor; color: var(--accent-hi); margin-top: 8px; }
+.badge i { width: 7px; height: 7px; background: currentColor; border-radius: 50%; box-shadow: 0 0 10px currentColor; }
+.badge.miss { color: var(--amber); }
+.badge.live i { animation: blink 1.2s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0.2; } }
+
+/* top-right controls */
+.ctrl { right: max(18px, env(safe-area-inset-right, 0px)); top: 18px; display: grid; gap: 10px; min-width: 300px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.btn { font-family: var(--hud); font-weight: 600; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink); background: rgba(34, 81, 255, 0.08); border: 1px solid var(--edge-hi); padding: 7px 12px; cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); transition: background .15s, color .15s; }
+.btn:hover { background: rgba(34, 81, 255, 0.28); }
+.btn.on { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 18px rgba(34, 81, 255, 0.6); }
+.btn:focus-visible, .seg button:focus-visible, .chk:focus-within { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.btn kbd, .chk kbd { font-family: var(--mono); font-size: 10px; color: var(--mute); margin-left: 6px; letter-spacing: 0; }
+.btn.on kbd { color: rgba(255, 255, 255, 0.7); }
+.seg { display: inline-flex; border: 1px solid var(--edge); }
+.seg button { font-family: var(--mono); font-size: 11px; color: var(--mute); background: transparent; border: 0; padding: 6px 9px; cursor: pointer; }
+.seg button[aria-pressed="true"] { color: #fff; background: rgba(34, 81, 255, 0.55); }
+.lab { font-family: var(--hud); font-size: 10px; letter-spacing: 0.18em; color: var(--dim); text-transform: uppercase; min-width: 46px; }
+.chk { display: inline-flex; gap: 7px; align-items: center; font-family: var(--hud); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--mute); cursor: pointer; padding: 4px 6px; }
+.chk input { accent-color: var(--accent); width: 14px; height: 14px; }
+
+/* left: track readout */
+.track { left: max(18px, env(safe-area-inset-left, 0px)); top: 250px; width: 290px; }
+.kv { display: grid; grid-template-columns: auto 1fr auto; gap: 0 10px; align-items: center; font-variant-numeric: tabular-nums; }
+.kv > div { padding: 3px 0; border-bottom: 1px solid rgba(110, 160, 255, 0.10); }
+.kv .k { font-family: var(--hud); font-size: 11px; letter-spacing: 0.08em; color: var(--mute); }
+.kv .k small { color: var(--dim); font-family: var(--mono); font-size: 9px; letter-spacing: 0; margin-left: 4px; }
+.kv .v { font-family: var(--mono); font-size: 14px; font-weight: 500; text-align: right; color: var(--ink); }
+.kv .t { font-family: var(--mono); font-size: 11px; color: var(--cyan); text-align: right; min-width: 58px; }
+.resbar { grid-column: 1 / -1; height: 3px; background: rgba(110, 160, 255, 0.10); position: relative; border: 0 !important; padding: 0 !important; margin-top: -1px; }
+.resbar i { position: absolute; top: 0; bottom: 0; background: var(--accent-hi); }
+.resbar i.bad { background: var(--amber); }
+.resbar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--mute); }
+.flip { color: var(--amber) !important; }
+
+/* right: performance */
+.perf { right: max(18px, env(safe-area-inset-right, 0px)); top: 250px; width: 290px; }
+.gauge { display: grid; grid-template-columns: 92px 1fr; gap: 12px; align-items: center; margin-bottom: 8px; }
+.gauge svg { width: 92px; height: 92px; display: block; }
+.gauge .big { font-family: var(--mono); font-weight: 700; font-size: 22px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.stat .v { font-family: var(--mono); font-weight: 700; font-size: 19px; font-variant-numeric: tabular-nums; }
+.stat .l { font-family: var(--hud); font-size: 10px; letter-spacing: 0.12em; color: var(--mute); text-transform: uppercase; }
+.stat .r { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+#hist { width: 100%; height: 70px; display: block; margin-top: 10px; }
+.cap { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-top: 4px; }
+
+/* bottom: minimaps and pipeline */
+.mini { bottom: 18px; width: clamp(220px, 32vh, 300px); }
+.mini canvas { width: 100%; display: block; }
 #xy { aspect-ratio: 1 / 1; }
-#zu { aspect-ratio: 5 / 4; }
-.note { font-size: 12px; color: var(--mute); margin: 0; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--mute); }
-.legend span { display: inline-flex; gap: 7px; align-items: center; }
-.sw { width: 16px; height: 0; border-top: 2px solid; display: inline-block; }
-.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+#zu { aspect-ratio: 4 / 3; }
+.mini.l { left: max(18px, env(safe-area-inset-left, 0px)); }
+.mini.r { right: max(18px, env(safe-area-inset-right, 0px)); }
+.pipe { left: 50%; transform: translateX(-50%); bottom: 18px; width: min(520px, calc(100% - 700px)); min-width: 360px; }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.step { font-family: var(--hud); font-weight: 600; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.step .bar { height: 4px; background: rgba(110, 160, 255, 0.12); margin-top: 6px; overflow: hidden; }
+.step .bar i { display: block; height: 100%; width: 0; background: var(--accent-hi); box-shadow: 0 0 10px var(--accent); }
+.step.on { color: var(--ink); }
+.step.done { color: var(--mute); }
+.log { margin-top: 10px; font-family: var(--mono); font-size: 10.5px; color: var(--mute); display: grid; gap: 2px; overflow: hidden; }
+.log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log div:first-child { color: var(--ink); }
+.log .ok { color: var(--accent-hi); } .log .no { color: var(--amber); }
 
-.phase { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--ghost); }
-.phase span { transition: color .2s; }
-.phase span.on { color: var(--ink); }
-.phase span.on::before { content: "→ "; color: var(--accent-hi); }
+/* 3D labels */
+.labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.lbl { position: absolute; transform: translate(-50%, -100%); font-family: var(--mono); font-size: 10px; color: var(--mute); white-space: nowrap;
+  padding: 2px 6px; border-left: 1px solid var(--edge-hi); background: rgba(3, 14, 23, 0.55); }
+.lbl.trk { color: #fff; border-color: var(--accent-hi); font-size: 11px; }
+.lbl.vtx { color: var(--cyan); border-color: var(--cyan); }
 
-.lower { display: grid; gap: 40px; grid-template-columns: 1fr; }
-@media (min-width: 900px) { .lower { grid-template-columns: 1.05fr 1fr; } }
-.tbl { min-width: 0; overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 14px; }
-th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
-th:first-child, td:first-child { text-align: left; padding-left: 0; }
-th { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); font-weight: 500; }
-td.reco { color: var(--ink); font-weight: 500; }
-td.tru { color: var(--cyan); }
-td.res { color: var(--mute); }
-.unit { color: var(--mute); font-size: 12px; }
+.legend { position: absolute; left: 50%; transform: translateX(-50%); top: 22px; display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+  font-family: var(--hud); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); pointer-events: none; max-width: 40%; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { width: 14px; height: 3px; display: inline-block; }
 
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 22px 28px; }
-.kpi .v { font-family: var(--serif); font-weight: 700; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
-.kpi .l { font-size: 12px; color: var(--mute); margin-top: 6px; }
-.kpi .ref { font-size: 11px; color: var(--ghost); }
-.d3 { display: grid; gap: 32px; grid-template-columns: 1fr; }
-@media (min-width: 900px) { .d3 { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: start; } }
-#d3 { width: 100%; max-width: 100%; aspect-ratio: 4 / 5; display: block; cursor: grab; touch-action: none; }
-#d3:active { cursor: grabbing; }
-@media (min-width: 900px) { #d3 { aspect-ratio: 5 / 4; } }
-.render { min-width: 0; }
-.render img { width: 100%; max-width: 100%; height: auto; display: block; }
-footer { display: grid; gap: 6px; font-size: 12px; color: var(--mute); border-top: 1px solid var(--rule); padding-top: 16px; }
-footer a { color: var(--ink); }
-@media (prefers-reduced-motion: reduce) { .phase span { transition: none; } }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(3, 14, 23, 0.82); z-index: 5; padding: 24px; }
+.overlay figure { margin: 0; max-width: min(560px, 92vw); display: grid; gap: 10px; }
+.overlay img { width: 100%; height: auto; display: block; border: 1px solid var(--edge); }
+.overlay figcaption { font-family: var(--mono); font-size: 11px; color: var(--mute); }
+.err { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-family: var(--mono); color: var(--amber); text-align: center; max-width: 40ch; }
+
+/* narrow screens: stage on top, panels stacked below */
+@media (max-width: 1099px) {
+  html, body { height: auto; }
+  .app { height: auto; min-height: 0; overflow: visible; display: grid; }
+  .stagebox { position: relative; height: 62vh; min-height: 380px; }
+  .hud { position: static; padding-block: 14px 24px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+  .hud > * { position: relative !important; inset: auto !important; transform: none !important; width: auto !important; min-width: 0 !important; }
+  .brand { order: -2; } .ctrl { order: -1; }
+  .legend { max-width: 92%; top: 10px; }
+}
+@media (min-width: 1100px) { .stagebox { position: absolute; inset: 0; } }
+@media (min-width: 1100px) and (max-height: 820px) { #hist, .cap { display: none; } .mini { width: clamp(200px, 28vh, 260px); } }
+@media (prefers-reduced-motion: reduce) { .badge.live i { animation: none; } .btn { transition: none; } }
 </style>
 
-<div class="wrap">
-  <header>
-    <div class="eyebrow">muEDM Phase I · PSI · Cylindrical Helix Tracker</div>
-    <h1>Every decay positron, fitted live</h1>
-    <p class="lede">A Michel positron from a muon on the 30&nbsp;mm frozen-spin orbit curls through four stereo-fibre cylinders in a 3&nbsp;T field.
-      Each second this page simulates one decay, builds space points from u/v fibre coincidences, seeds, assigns hits and fits the helix.
-      <b>The reconstruction runs in your browser</b>, with the same algorithm as the <code>chet-tracking</code> package.</p>
-  </header>
-
-  <div class="controls">
-    <button id="play" class="primary" type="button">Pause</button>
-    <button id="step" type="button">Next event</button>
-    <select id="rate" aria-label="Event rate">
-      <option value="1000" selected>1 event / s</option>
-      <option value="2000">1 event / 2 s</option>
-      <option value="500">2 events / s</option>
-      <option value="200">5 events / s</option>
-    </select>
-    <label class="tog"><input type="checkbox" id="pile"> pile-up (2 decays)</label>
-    <label class="tog"><input type="checkbox" id="ghosts" checked> show ghost points</label>
-    <span id="status" class="pill wait">starting</span>
+<div class="app" id="app">
+  <div class="stagebox">
+    <canvas id="stage" aria-label="3D view of the CHeT tracker with the current event"></canvas>
+    <div class="labels" id="labels"></div>
+    <div class="vignette"></div><div class="scan"></div>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--accent)"></i>fit</span>
+      <span><i style="background:var(--cyan)"></i>truth · μ⁺ beam</span>
+      <span><i style="background:var(--ink)"></i>fired fibre</span>
+      <span><i style="background:var(--amber)"></i>space point</span>
+    </div>
+    <div class="err" id="err" hidden></div>
   </div>
 
-  <div class="phase" aria-hidden="true">
-    <span id="ph0">SiPM hits</span><span id="ph1">stereo crossings</span><span id="ph2">seed triplet</span><span id="ph3">helix fit</span>
+  <div class="hud">
+    <div class="brand">
+      <div class="eyebrow">muEDM · Phase I · PSI πE1</div>
+      <h1>CHeT <span>//</span> Live</h1>
+      <div class="sub">4 stereo-fibre cylinders · 768 SiPM · B = 3.0 T · frozen-spin orbit r = 30 mm</div>
+      <div class="evtno"><span class="l">Event</span><span class="n" id="evn">000000</span></div>
+      <div class="badge live" id="badge"><i></i><span id="badgeTxt">acquiring</span></div>
+    </div>
+
+    <div class="panel ctrl">
+      <div class="ptitle"><b>Run control</b><span class="tag">keys in grey</span></div>
+      <div class="row">
+        <button class="btn on" id="play" type="button">Pause<kbd>space</kbd></button>
+        <button class="btn" id="step" type="button">Next<kbd>N</kbd></button>
+        <button class="btn" id="renderBtn" type="button">Blender<kbd>B</kbd></button>
+      </div>
+      <div class="row"><span class="lab">Rate</span>
+        <div class="seg" role="group" aria-label="Event rate">
+          <button type="button" data-ms="2000" aria-pressed="false">0.5/s</button>
+          <button type="button" data-ms="1000" aria-pressed="true">1/s</button>
+          <button type="button" data-ms="500" aria-pressed="false">2/s</button>
+          <button type="button" data-ms="200" aria-pressed="false">5/s</button>
+        </div>
+      </div>
+      <div class="row"><span class="lab">View</span>
+        <div class="seg" role="group" aria-label="Camera">
+          <button type="button" data-cam="iso" aria-pressed="true">iso 1</button>
+          <button type="button" data-cam="beam" aria-pressed="false">axial 2</button>
+          <button type="button" data-cam="side" aria-pressed="false">side 3</button>
+          <button type="button" data-cam="track" aria-pressed="false">track 4</button>
+        </div>
+      </div>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="pile"> pile-up<kbd>P</kbd></label>
+        <label class="chk"><input type="checkbox" id="ghosts" checked> ghosts<kbd>G</kbd></label>
+        <label class="chk"><input type="checkbox" id="spin" checked> auto-orbit</label>
+      </div>
+    </div>
+
+    <div class="panel track">
+      <div class="ptitle"><b>Positron track</b><span class="tag" id="trkTag">fit vs truth</span></div>
+      <div class="kv" id="kv"></div>
+    </div>
+
+    <div class="panel perf">
+      <div class="ptitle"><b>Performance</b><span class="tag" id="nev">0 events</span></div>
+      <div class="gauge">
+        <svg viewBox="0 0 92 92" aria-hidden="true">
+          <circle cx="46" cy="46" r="38" fill="none" stroke="rgba(110,160,255,0.14)" stroke-width="6"/>
+          <circle id="gArc" cx="46" cy="46" r="38" fill="none" stroke="#2251FF" stroke-width="6" stroke-linecap="butt"
+            stroke-dasharray="0 239" transform="rotate(-90 46 46)" style="filter: drop-shadow(0 0 6px #2251FF)"/>
+          <text x="46" y="51" text-anchor="middle" fill="#E6F0FA" font-family="JetBrains Mono, monospace" font-weight="700" font-size="17" id="gTxt">–</text>
+        </svg>
+        <div><div class="stat"><div class="l">Tracking efficiency</div><div class="r">positrons with ≥ 3 crossings</div></div>
+          <div class="stat" style="margin-top:8px"><div class="v" id="k_ms">–</div><div class="l">ms / event · this browser</div></div></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="v" id="k_dp">–</div><div class="l">σp / p</div><div class="r">need ≲ 5%</div></div>
+        <div class="stat"><div class="v" id="k_th">–</div><div class="l">σθ mrad</div><div class="r">CHeT MC 10–30</div></div>
+        <div class="stat"><div class="v" id="k_ph">–</div><div class="l">σφ mrad</div><div class="r">CHeT MC 50</div></div>
+        <div class="stat"><div class="v" id="k_fl">–</div><div class="l">pz sign flips</div><div class="r">up/down bias</div></div>
+      </div>
+      <canvas id="hist" aria-label="Histogram of momentum residuals"></canvas>
+      <div class="cap">Δp/p residuals, last 600 matched tracks, ±10%</div>
+    </div>
+
+    <div class="panel mini l">
+      <div class="ptitle"><b>Transverse</b><span class="tag">x–y · mm</span></div>
+      <canvas id="xy" aria-label="Transverse view"></canvas>
+    </div>
+    <div class="panel mini r">
+      <div class="ptitle"><b>Longitudinal</b><span class="tag">z vs turning angle</span></div>
+      <canvas id="zu" aria-label="z versus unwrapped turning angle"></canvas>
+    </div>
+
+    <div class="panel pipe">
+      <div class="ptitle"><b>Reconstruction pipeline</b><span class="tag" id="pipeTag">–</span></div>
+      <div class="steps">
+        <div class="step" id="st0">SiPM hits<div class="bar"><i></i></div></div>
+        <div class="step" id="st1">Stereo points<div class="bar"><i></i></div></div>
+        <div class="step" id="st2">Seed<div class="bar"><i></i></div></div>
+        <div class="step" id="st3">Helix fit<div class="bar"><i></i></div></div>
+      </div>
+      <div class="log" id="log" aria-live="off"></div>
+    </div>
   </div>
 
-  <section class="stage">
-    <div class="fig">
-      <h2>Transverse view</h2>
-      <canvas id="xy" aria-label="Transverse view of CHeT with hits and fitted track"></canvas>
-      <div class="legend">
-        <span><i class="sw" style="border-color:var(--accent)"></i>fitted track</span>
-        <span><i class="sw" style="border-color:var(--cyan);border-top-style:dashed"></i>MC truth</span>
-        <span><i class="dot" style="background:var(--ink)"></i>space point on track</span>
-        <span><i class="dot" style="border:1px solid var(--ghost)"></i>ghost / unused</span>
-        <span><i class="dot" style="background:var(--warn)"></i>decay vertex</span>
-      </div>
-      <p class="note">Ticks on each cylinder mark fired SiPM channels (4 fibres each) at their z&nbsp;=&nbsp;0 reference angle; outer ticks u (+10°), inner ticks v (−10°).</p>
-    </div>
-    <div class="fig">
-      <h2>Longitudinal fit</h2>
-      <canvas id="zu" aria-label="z versus unwrapped turning angle with fitted line"></canvas>
-      <p class="note">z of each assigned point against its unwrapped turning angle U (one turn = 2π). The fit chooses the turn of every hit from z and time of flight, which fixes the up/down sign of p<sub>z</sub>.</p>
-    </div>
-  </section>
-
-  <section class="d3">
-    <div class="fig">
-      <h2>3D event display</h2>
-      <canvas id="d3" aria-label="Rotatable 3D view of the CHeT with the current event"></canvas>
-      <div class="legend">
-        <span><i class="sw" style="border-color:var(--accent)"></i>fitted helix</span>
-        <span><i class="sw" style="border-color:var(--cyan);border-top-style:dashed"></i>MC truth</span>
-        <span><i class="sw" style="border-color:var(--ink)"></i>fired fibres</span>
-        <span><i class="dot" style="background:var(--warn)"></i>space points on track</span>
-      </div>
-      <p class="note" id="d3note">Drag to rotate, scroll or pinch to zoom, double-click to reset. The view turns slowly on its own while you leave it alone.
-        Every 6th fibre of each stereo layer is drawn; a fired SiPM lights the middle fibre of its group of four.</p>
-    </div>
-    <figure class="fig render" style="margin:0">
-      <h2>Rendered in Blender</h2>
-      <img src="data:image/jpeg;base64,/*__BLENDER_JPG__*/" alt="Blender Cycles render of the CHeT cut away on the camera side, with fired fibres, space points and a curling positron helix" width="960" height="1200">
-      <figcaption class="note">One reconstructed event (p = 34.2 MeV/c fitted, 34.8 true) rendered with Cycles from <code>scripts/blender_event_display.py</code>. Fibres on the camera side are cut away.</figcaption>
+  <div class="overlay" id="overlay" hidden>
+    <figure>
+      <img src="data:image/jpeg;base64,/*__BLENDER_JPG__*/" alt="Blender Cycles render of the CHeT with one reconstructed curling positron" width="960" height="1200">
+      <figcaption>Cycles render from scripts/blender_event_display.py · p = 34.2 MeV/c fitted, 34.8 true · camera-side fibres cut away. Click or press B to close.</figcaption>
     </figure>
-  </section>
-
-  <section class="lower">
-    <div class="tbl">
-      <div class="eyebrow" style="margin-bottom:10px">This event</div>
-      <table>
-        <thead><tr><th>Quantity</th><th>Reconstructed</th><th>MC truth</th><th>Residual</th></tr></thead>
-        <tbody id="tb"></tbody>
-      </table>
-    </div>
-    <div>
-      <div class="eyebrow" style="margin-bottom:14px">Running performance · <span id="nev">0</span> events</div>
-      <div class="kpis">
-        <div class="kpi"><div class="v" id="k_eff">–</div><div class="l">Tracking efficiency</div><div class="ref">tracks with ≥ 3 crossings</div></div>
-        <div class="kpi"><div class="v" id="k_dp">–</div><div class="l">σ<sub>p</sub>/p</div><div class="ref">requirement ≈ 5%</div></div>
-        <div class="kpi"><div class="v" id="k_th">–</div><div class="l">σ<sub>θ</sub> (mrad)</div><div class="ref">CHeT MC: 10–30</div></div>
-        <div class="kpi"><div class="v" id="k_ph">–</div><div class="l">σ<sub>φ</sub> (mrad)</div><div class="ref">CHeT MC: 50</div></div>
-        <div class="kpi"><div class="v" id="k_fl">–</div><div class="l">p<sub>z</sub> sign flips</div><div class="ref">matters for up/down asymmetry</div></div>
-        <div class="kpi"><div class="v" id="k_ms">–</div><div class="l">ms / event</div><div class="ref">measured in this browser</div></div>
-      </div>
-    </div>
-  </section>
-
-  <footer>
-    <div>Geometry: cylinders r = 20, 23, 36, 45 mm; ±10° stereo (placeholder); 500 µm fibres, 4 per SiPM, 768 channels; |z| ≤ 200 mm; B = 3 T.
-      Toy MC with Michel spectrum, frozen-spin polarisation, 0.5 ns jitter, 95% fibre efficiency, 55 kHz dark counts; no multiple scattering or tiles.</div>
-    <div>Source: chet-tracking toy MC; reference resolutions from A. Venturini et al., NIM A 1080 (2025) 170760.</div>
-  </footer>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script>
 /*__ENGINE__*/
 </script>
 <script>
 (function () {
   "use strict";
-  const { makeGeometry, rng, simulate, reconstruct, TWO_PI, mod2pi } = window.CHeT;
+  const { makeGeometry, rng, simulate, reconstruct, TWO_PI } = window.CHeT;
   const g = makeGeometry();
   const R = rng((Date.now() & 0xffffff) ^ 0x5eed);
+  const $ = (id) => document.getElementById(id);
   const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const COL = { ink: css("--ink"), mute: css("--mute"), rule: css("--rule"), acc: css("--accent"),
-    accHi: css("--accent-hi"), cyan: css("--cyan"), ghost: css("--ghost"), warn: css("--warn") };
+  const COL = { ink: css("--ink"), mute: css("--mute"), dim: css("--dim"), acc: css("--accent"), accHi: css("--accent-hi"),
+    cyan: css("--cyan"), amber: css("--amber"), edge: "rgba(110,160,255,0.22)" };
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const $ = (id) => document.getElementById(id);
-  const xy = $("xy"), zu = $("zu");
-  let ev = null, rec = null, phase = 3, timer = null, playing = true, interval = 1000;
-  const stats = { n: 0, acc: 0, found: 0, dp: [], dth: [], dph: [], flips: 0, nm: 0, ms: [] };
+  let ev = null, rec = null, nEvt = 0, interval = 1000, playing = true, evStart = 0, nextAt = 0;
+  const stats = { acc: 0, found: 0, dp: [], dth: [], dph: [], flips: 0, nm: 0, ms: [] };
+  const logLines = [];
+  // event timeline as fractions of the interval: flight, points, seed, fit
+  const TL = { flight: [0, 0.38], points: [0.38, 0.52], seed: [0.52, 0.64], fit: [0.64, 0.84] };
+  const prog = (a, f) => Math.max(0, Math.min(1, (f - a[0]) / (a[1] - a[0])));
 
-  function setupCanvas(c) {
-    const r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1;
-    c.width = Math.round(r.width * d); c.height = Math.round(r.height * d);
-    const ctx = c.getContext("2d"); ctx.setTransform(d, 0, 0, d, 0, 0);
-    return { ctx, w: r.width, h: r.height };
+  // =================================================================== 3D
+  const V3 = (x, y, z) => new THREE.Vector3(x / 10, z / 10, -y / 10);   // detector (x,y,z) -> three (x,z,-y); 1 unit = 10 mm
+  const S = {};
+  function glowTex(inner, outer) {
+    const c = document.createElement("canvas"); c.width = c.height = 128;
+    const x = c.getContext("2d"), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, inner); gr.addColorStop(0.25, outer); gr.addColorStop(1, "rgba(0,0,0,0)");
+    x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  }
+  function ringTex() {
+    const c = document.createElement("canvas"); c.width = c.height = 128;
+    const x = c.getContext("2d"); x.strokeStyle = "#fff"; x.lineWidth = 6;
+    x.beginPath(); x.arc(64, 64, 50, 0, TWO_PI); x.stroke();
+    return new THREE.CanvasTexture(c);
+  }
+  const add = (o) => (o.material.blending = THREE.AdditiveBlending, o.material.depthWrite = false, o.material.transparent = true, o);
+
+  function fibrePositions(c, sgn, rr, phis, nz = 28) {
+    const pos = [];
+    for (const p0 of phis) for (let k = 0; k < nz; k++) for (const kk of [k, k + 1]) {
+      const z = -g.L + (2 * g.L * kk) / nz, ph = p0 + sgn * z * c.tan / c.r, v = V3(rr * Math.cos(ph), rr * Math.sin(ph), z);
+      pos.push(v.x, v.y, v.z);
+    }
+    return pos;
+  }
+  function lineGeo(pos) { const gg = new THREE.BufferGeometry(); gg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); return gg; }
+  function ring(r, z, color, opacity) {
+    const pts = []; for (let k = 0; k <= 160; k++) { const a = TWO_PI * k / 160; pts.push(V3(r * Math.cos(a), r * Math.sin(a), z)); }
+    return add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, opacity })));
   }
 
-  // ---------------------------------------------------------- transverse view
-  function drawXY() {
-    const { ctx, w, h } = setupCanvas(xy);
-    ctx.clearRect(0, 0, w, h);
-    const RV = 62, S = Math.min(w, h) / 2 / (RV + 4), cx0 = w / 2, cy0 = h / 2;
-    const X = (x) => cx0 + x * S, Y = (y) => cy0 - y * S;
-    // scale bar
-    ctx.strokeStyle = COL.mute; ctx.fillStyle = COL.mute; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(12, h - 14); ctx.lineTo(12 + 20 * S, h - 14); ctx.stroke();
-    ctx.font = "11px " + css("--sans"); ctx.fillText("20 mm", 12, h - 20);
-    // cylinders and orbit
-    g.cyl.forEach((c, i) => {
-      ctx.strokeStyle = COL.rule; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(cx0, cy0, c.r * S, 0, TWO_PI); ctx.stroke();
-    });
-    ctx.setLineDash([2, 4]); ctx.strokeStyle = COL.cyan; ctx.globalAlpha = 0.5;
-    ctx.beginPath(); ctx.arc(cx0, cy0, g.r0 * S, 0, TWO_PI); ctx.stroke();
-    ctx.setLineDash([]); ctx.globalAlpha = 1;
-    ctx.fillStyle = COL.mute; ctx.font = "10px " + css("--sans");
-    g.cyl.forEach((c) => ctx.fillText(c.r + "", X(c.r * Math.cos(-0.62)) + 3, Y(c.r * Math.sin(-0.62)) + 3));
-    ctx.fillStyle = COL.cyan; ctx.globalAlpha = 0.7; ctx.fillText("μ orbit 30", X(-g.r0 * 0.71) - 58, Y(g.r0 * 0.71) - 4);
-    ctx.globalAlpha = 1;
-    // tracker volume boundary; everything below is clipped to it
-    ctx.strokeStyle = COL.rule; ctx.setLineDash([1, 3]);
-    ctx.beginPath(); ctx.arc(cx0, cy0, RV * S, 0, TWO_PI); ctx.stroke(); ctx.setLineDash([]);
-    if (!ev) return;
-    ctx.save(); ctx.beginPath(); ctx.arc(cx0, cy0, RV * S, 0, TWO_PI); ctx.clip();
+  function init3D() {
+    if (!window.THREE || !THREE.OrbitControls) { const e = $("err"); e.hidden = false; e.textContent = "The 3D stage needs three.js from the CDN, which did not load. The panels still update."; return false; }
+    const canvas = $("stage");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x030e17, 0.006);
+    const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 800);
+    const controls = new THREE.OrbitControls(camera, canvas);
+    Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, autoRotate: !reduce, autoRotateSpeed: 0.45, minDistance: 25, maxDistance: 220, enablePan: false });
+    controls.target.set(0, 0, 0);
+    camera.position.set(52, 50, 60);
 
-    // fired channels
+    // detector: stereo fibres per layer (every 4th fibre), end rings, solenoid shell, floor
+    const det = new THREE.Group(); scene.add(det);
+    g.cyl.forEach((c, ci) => {
+      [1, -1].forEach((sgn, s) => {
+        const phis = []; for (let f = 0; f < c.nfib; f += 4) phis.push((f + 0.5) * c.dphi);
+        const col = s ? 0x2c5296 : 0x3460a8;
+        det.add(new THREE.LineSegments(lineGeo(fibrePositions(c, sgn, c.r + (s ? 0.6 : 0), phis)),
+          new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.16 + 0.04 * ci, depthWrite: false })));
+      });
+      [-g.L, g.L].forEach((z) => det.add(ring(c.r + 0.3, z, 0x3e64a8, 0.6)));
+    });
+    // carbon-fibre style end flanges
+    [-g.L - 4, g.L + 4].forEach((z) => {
+      const m = new THREE.Mesh(new THREE.RingGeometry(1.6, 5.2, 96), new THREE.MeshBasicMaterial({ color: 0x0b2440, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2; m.position.y = z / 10; det.add(m);
+      det.add(ring(52, z, 0x2a5aa8, 0.5)); det.add(ring(16, z, 0x2a5aa8, 0.35));
+    });
+    // solenoid bore: fresnel shell
+    const shell = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 7.2, 46, 96, 1, true), new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+      uniforms: { c: { value: new THREE.Color(0x2251ff) } },
+      vertexShader: "varying vec3 vN; varying vec3 vV; varying float vY; void main(){ vec4 mv = modelViewMatrix*vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); vY = position.y; gl_Position = projectionMatrix*mv; }",
+      fragmentShader: "uniform vec3 c; varying vec3 vN; varying vec3 vV; varying float vY; void main(){ float f = pow(1.0-abs(dot(vN,vV)), 3.0); float band = 0.5+0.5*smoothstep(0.0,1.0,abs(sin(vY*1.6))); gl_FragColor = vec4(c*(0.22*f*band), f*0.35); }",
+    }));
+    scene.add(shell);
+    // floor: polar grid
+    const floor = new THREE.Group(); floor.position.y = -26;
+    for (let r = 2; r <= 16; r += 2) floor.add(ring(r * 10, 0, 0x16365e, r % 4 ? 0.25 : 0.5));
+    const rad = []; for (let k = 0; k < 24; k++) { const a = TWO_PI * k / 24; rad.push(0, 0, 0, 16 * Math.cos(a), 0, 16 * Math.sin(a)); }
+    floor.add(add(new THREE.LineSegments(lineGeo(rad), new THREE.LineBasicMaterial({ color: 0x16365e, opacity: 0.35 }))));
+    scene.add(floor);
+    // muon orbit + stored beam particles
+    scene.add(ring(g.r0, 0, COL.cyan, 0.85));
+    const nMu = 90, muPos = new Float32Array(nMu * 3), muPh = [], muZ = [];
+    for (let i = 0; i < nMu; i++) { muPh.push(Math.random() * TWO_PI); muZ.push((Math.random() - 0.5) * 1.2); }
+    const muGeo = new THREE.BufferGeometry(); muGeo.setAttribute("position", new THREE.BufferAttribute(muPos, 3));
+    const muPts = add(new THREE.Points(muGeo, new THREE.PointsMaterial({ color: 0x38c6ff, size: 0.55, map: glowTex("rgba(255,255,255,1)", "rgba(0,169,244,0.8)"), opacity: 0.9 })));
+    scene.add(muPts);
+    // dust
+    const dust = []; for (let i = 0; i < 500; i++) { const r = 20 + Math.random() * 120, a = Math.random() * TWO_PI; dust.push(r * Math.cos(a), (Math.random() - 0.5) * 120, r * Math.sin(a)); }
+    scene.add(add(new THREE.Points(lineGeo(dust), new THREE.PointsMaterial({ color: 0x3a6ea8, size: 0.35, opacity: 0.35 }))));
+
+    // post-processing bloom
+    const composer = new THREE.EffectComposer(renderer);
+    composer.addPass(new THREE.RenderPass(scene, camera));
+    const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(512, 512), 0.95, 0.5, 0.42);
+    composer.addPass(bloom);
+
+    Object.assign(S, { renderer, scene, camera, controls, composer, bloom, dyn: new THREE.Group(), muPh, muZ, muPos, muGeo,
+      glowW: glowTex("rgba(255,255,255,1)", "rgba(110,139,255,0.9)"), glowA: glowTex("rgba(255,250,235,1)", "rgba(255,181,71,0.9)"),
+      glowC: glowTex("rgba(255,255,255,1)", "rgba(0,169,244,0.9)"), ringT: ringTex(), camGoal: null, ok: true });
+    scene.add(S.dyn);
+    // labels for the cylinders
+    S.labels = [{ el: mkLabel("CHeT · r 20 / 23 / 36 / 45 mm · ±10° stereo · 400 mm"), pos: V3(0, 0, g.L + 30) },
+      { el: mkLabel("μ⁺ orbit r 30 mm", "vtx"), pos: V3(g.r0 * Math.cos(0.8), g.r0 * Math.sin(0.8), -14) }];
+    S.trkLabel = mkLabel("", "trk"); S.vtxLabel = mkLabel("decay vertex", "vtx");
+    controls.addEventListener("start", () => { $("spin").checked = false; controls.autoRotate = false; S.camGoal = null; setCamBtn(null); });
+    return true;
+  }
+  function mkLabel(text, cls = "") { const d = document.createElement("div"); d.className = "lbl " + cls; d.textContent = text; $("labels").appendChild(d); return d; }
+
+  function disposeDyn() {
+    S.dyn.children.slice().forEach((o) => { S.dyn.remove(o); o.geometry && o.geometry.dispose(); o.material && o.material.dispose(); });
+  }
+  function helixPath(xc, yc, Rr, h, psiV, zV, umax, step = 0.035) {
+    const pts = [], us = [];
+    for (let u = 0; u <= umax; u += step) {
+      const z = zV + h * u; if (Math.abs(z) > g.L + 6) break;
+      pts.push(V3(xc + Rr * Math.cos(psiV - u), yc + Rr * Math.sin(psiV - u), z)); us.push(u);
+    }
+    return { pts, us };
+  }
+
+  // build the per-event scene graph (everything hidden; animate() reveals it on the timeline)
+  function buildEvent() {
+    if (!S.ok) return;
+    disposeDyn();
+    const E = { fibres: [], flight: [], points: [], seeds: [], fits: [] };
+    // truth flights
+    ev.tracks.forEach((t, m) => {
+      const umax = Math.max(...t.crossings.map((c) => c.D), 1) + 0.6;
+      const { pts, us } = helixPath(t.cx, t.cy, t.R, t.h, t.psi0, t.vz, Math.min(umax, TWO_PI * 3.2));
+      if (pts.length < 2) return;
+      const ln = add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: COL.cyan, opacity: 0.75 })));
+      ln.geometry.setDrawRange(0, 0); S.dyn.add(ln);
+      const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: S.glowC, color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+      head.scale.set(2.6, 2.6, 1); head.visible = false; S.dyn.add(head);
+      const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: S.glowC, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+      flash.position.copy(V3(t.vx, t.vy, t.vz)); flash.scale.set(0.1, 0.1, 1); S.dyn.add(flash);
+      E.flight.push({ ln, head, flash, pts, us, umax: us[us.length - 1], m });
+    });
+    // fired fibres (centre fibre of the SiPM's four), lit when the positron reaches them
     ev.raw.forEach((hh) => {
-      const c = g.cyl[hh.cyl], ph = c.chPhi[hh.ch];
-      const r1 = c.r + (hh.s === 0 ? 0.6 : -0.6), r2 = c.r + (hh.s === 0 ? 3.2 : -3.2);
-      ctx.strokeStyle = hh.truth < 0 ? COL.warn : COL.mute; ctx.globalAlpha = hh.truth < 0 ? 0.8 : 0.75;
-      ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.moveTo(X(r1 * Math.cos(ph)), Y(r1 * Math.sin(ph)));
-      ctx.lineTo(X(r2 * Math.cos(ph)), Y(r2 * Math.sin(ph))); ctx.stroke();
+      const c = g.cyl[hh.cyl], sgn = hh.s ? -1 : 1;
+      const ln = add(new THREE.LineSegments(lineGeo(fibrePositions(c, sgn, c.r + (hh.s ? 0.6 : 0), [c.chPhi[hh.ch]], 36)),
+        new THREE.LineBasicMaterial({ color: hh.truth < 0 ? COL.amber : 0xdfeaff, opacity: 0 })));
+      S.dyn.add(ln);
+      const fl = E.flight.find((f) => f.m === hh.truth);
+      E.fibres.push({ ln, at: hh.truth >= 0 && fl ? Math.min(1, hh.D / fl.umax) : Math.random(), noise: hh.truth < 0 });
     });
-    ctx.globalAlpha = 1;
-
-    // truth circles
-    ev.tracks.forEach((t) => {
-      ctx.strokeStyle = COL.cyan; ctx.setLineDash([5, 5]); ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(X(t.cx), Y(t.cy), t.R * S, 0, TWO_PI); ctx.stroke(); ctx.setLineDash([]);
-    });
-    if (phase < 1 || !rec) { ctx.restore(); return; }
-
-    // space points
+    if (!rec) { S.E = E; return; }
     const onTrack = new Set(); rec.tracks.forEach((t) => t.hits.forEach((p) => onTrack.add(p)));
-    const showG = $("ghosts").checked;
     rec.pts.forEach((p) => {
-      const isOn = phase >= 3 && onTrack.has(p);
-      if (!isOn && !showG && p.ghost) return;
-      ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), isOn ? 3.2 : 2.6, 0, TWO_PI);
-      if (isOn) { ctx.fillStyle = COL.ink; ctx.fill(); }
-      else { ctx.strokeStyle = p.ghost ? COL.ghost : COL.mute; ctx.lineWidth = 1; ctx.stroke(); }
+      const on = onTrack.has(p);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: on ? S.glowA : S.glowW, color: on ? 0xffffff : 0x6f8aa5,
+        blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+      sp.position.copy(V3(p.x, p.y, p.z)); sp.userData = { on, ghost: p.ghost, base: on ? 1.5 : 0.75 };
+      sp.scale.set(0.01, 0.01, 1); S.dyn.add(sp); E.points.push(sp);
     });
-    if (phase < 2) { ctx.restore(); return; }
-
-    // seed triplets of found tracks
     rec.tracks.forEach((t) => {
       t.seed.idx.forEach((i) => {
         const p = rec.pts[i];
-        ctx.strokeStyle = COL.accHi; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 7, 0, TWO_PI); ctx.stroke();
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: S.ringT, color: 0x6e8bff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+        sp.position.copy(V3(p.x, p.y, p.z)); sp.scale.set(2.4, 2.4, 1); S.dyn.add(sp); E.seeds.push(sp);
       });
-      if (phase === 2) {
-        ctx.strokeStyle = COL.accHi; ctx.globalAlpha = 0.45; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(X(t.seed.xc), Y(t.seed.yc), t.seed.R * S, 0, TWO_PI); ctx.stroke();
-        ctx.globalAlpha = 1;
-      }
-    });
-    if (phase < 3) { ctx.restore(); return; }
-
-    // fitted tracks: draw the visited arc solid, the rest faint
-    rec.tracks.forEach((t) => {
-      ctx.strokeStyle = COL.acc; ctx.lineWidth = 1; ctx.globalAlpha = 0.35;
-      ctx.beginPath(); ctx.arc(X(t.xc), Y(t.yc), t.R * S, 0, TWO_PI); ctx.stroke(); ctx.globalAlpha = 1;
       const Umax = Math.max(...t.U.filter((u, i) => t.w[i]));
-      const psiV = Math.atan2(t.vy - t.yc, t.vx - t.xc), span = Math.min(Umax - t.Uv, TWO_PI);
-      ctx.lineWidth = 2.6; ctx.strokeStyle = COL.acc; ctx.beginPath();
-      for (let k = 0; k <= 120; k++) {
-        const ps = psiV - span * k / 120, px = X(t.xc + t.R * Math.cos(ps)), py = Y(t.yc + t.R * Math.sin(ps));
-        k ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
-      }
-      ctx.stroke();
-      // momentum direction arrow at the vertex
-      const ax = X(t.vx), ay = Y(t.vy), dx = Math.cos(t.phi), dy = -Math.sin(t.phi);
-      ctx.strokeStyle = COL.warn; ctx.fillStyle = COL.warn; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + 16 * dx, ay + 16 * dy); ctx.stroke();
-      ctx.beginPath(); ctx.arc(ax, ay, 3.6, 0, TWO_PI); ctx.fill();
+      const psiV = Math.atan2(t.vy - t.yc, t.vx - t.xc);
+      const { pts } = helixPath(t.xc, t.yc, t.R, t.h, psiV, t.vz, Math.max(Umax - t.Uv, 0.5) + 0.35, 0.03);
+      if (pts.length < 2) return;
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 2, 0.11, 8, false),
+        new THREE.MeshBasicMaterial({ color: 0x3d6bff }));
+      const core = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 2, 0.035, 6, false),
+        new THREE.MeshBasicMaterial({ color: 0xdfe6ff }));
+      const nIdx = tube.geometry.index.count, nCore = core.geometry.index.count;
+      tube.geometry.setDrawRange(0, 0); core.geometry.setDrawRange(0, 0);
+      S.dyn.add(tube, core);
+      const vtx = new THREE.Sprite(new THREE.SpriteMaterial({ map: S.glowC, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+      vtx.position.copy(V3(t.vx, t.vy, t.vz)); vtx.scale.set(3, 3, 1); S.dyn.add(vtx);
+      E.fits.push({ tube, core, nIdx, nCore, vtx, t, end: pts[pts.length - 1], mid: pts[Math.floor(pts.length * 0.55)] });
     });
-    // the true vertex
-    ev.tracks.forEach((t) => {
-      ctx.strokeStyle = COL.cyan; ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(X(t.vx), Y(t.vy), 5, 0, TWO_PI); ctx.stroke();
-    });
-    ctx.restore();
+    S.E = E;
   }
 
-  // ---------------------------------------------------- z vs turning angle
-  function drawZU() {
-    const { ctx, w, h } = setupCanvas(zu);
-    ctx.clearRect(0, 0, w, h);
-    const m = { l: 46, r: 14, t: 12, b: 34 }, W = w - m.l - m.r, H = h - m.t - m.b;
-    const trk = rec && phase >= 3 ? rec.tracks[0] : null;
+  function animate3D(f, now) {
+    const E = S.E; if (!E) return;
+    const fl = prog(TL.flight, f), pp = prog(TL.points, f), sp = prog(TL.seed, f), fp = prog(TL.fit, f);
+    E.flight.forEach((F) => {
+      const n = Math.max(1, Math.round(fl * (F.pts.length - 1)));
+      F.ln.geometry.setDrawRange(0, n + 1);
+      F.head.visible = fl > 0 && fl < 1; F.head.position.copy(F.pts[Math.min(n, F.pts.length - 1)]);
+      const fs = fl < 0.12 ? 6 * fl / 0.12 : Math.max(0, 6 * (1 - (fl - 0.12) / 0.3));
+      F.flash.scale.set(fs + 0.01, fs + 0.01, 1);
+      F.ln.material.opacity = fp > 0 ? 0.75 - 0.45 * fp : 0.75;
+    });
+    E.fibres.forEach((Fb) => {
+      if (fl < Fb.at) { Fb.ln.material.opacity = 0; return; }
+      const age = (fl - Fb.at) * 2.6;
+      Fb.ln.material.opacity = (Fb.noise ? 0.4 : 0.28) + (Fb.noise ? 0 : 0.9 * Math.exp(-age * 3));
+    });
+    const showG = $("ghosts").checked;
+    E.points.forEach((p, i) => {
+      const d = p.userData, local = Math.max(0, Math.min(1, pp * 1.6 - (i / E.points.length) * 0.6));
+      let s = d.base * (local < 1 ? local * (1.6 - 0.6 * local) : 1);
+      if (d.on && fp >= 1) s *= 1 + 0.12 * Math.sin(now / 160 + i);
+      p.scale.set(s + 0.001, s + 0.001, 1);
+      p.material.opacity = (!d.on && d.ghost && !showG) ? 0 : (d.on ? 1 : (fp > 0 ? 0.35 : 0.8)) * local;
+    });
+    E.seeds.forEach((s, i) => {
+      const a = sp > 0 ? Math.min(1, sp * 3) * (fp > 0.5 ? Math.max(0, 1 - (fp - 0.5) * 2) : 1) : 0;
+      s.material.opacity = a; const sc = 2.4 + 1.2 * (1 - Math.min(1, sp * 2));
+      s.scale.set(sc, sc, 1); s.material.rotation = now / 900 + i;
+    });
+    E.fits.forEach((F) => {
+      const e = fp * fp * (3 - 2 * fp);
+      F.tube.geometry.setDrawRange(0, Math.floor(F.nIdx * e / 3) * 3);
+      F.core.geometry.setDrawRange(0, Math.floor(F.nCore * e / 3) * 3);
+      F.vtx.material.opacity = fp > 0 ? 0.9 : 0;
+    });
+  }
+
+  // camera presets
+  const CAMS = { iso: [52, 50, 60], beam: [0.01, 118, 0.01], side: [0, 6, 100], track: null };
+  function setCamBtn(k) { document.querySelectorAll("[data-cam]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.cam === k))); }
+  function goCam(k) {
+    if (!S.ok) return;
+    let pos = CAMS[k];
+    if (k === "track") {
+      const F = S.E && S.E.fits[0];
+      if (!F) return;
+      const m = F.mid, dir = new THREE.Vector3(m.x, 0, m.z).normalize();
+      pos = [m.x + dir.x * 42, m.y + 16, m.z + dir.z * 42];
+      S.camGoal = { pos: new THREE.Vector3(...pos), tgt: m.clone() };
+    } else S.camGoal = { pos: new THREE.Vector3(...pos), tgt: new THREE.Vector3(0, 0, 0) };
+    S.controls.autoRotate = false; $("spin").checked = false; setCamBtn(k);
+  }
+
+  function project(el, v, show = true) {
+    if (!show) { el.style.display = "none"; return; }
+    const p = v.clone().project(S.camera), c = S.renderer.domElement;
+    if (p.z > 1 || Math.abs(p.x) > 1.05 || Math.abs(p.y) > 1.05) { el.style.display = "none"; return; }
+    el.style.display = "block";
+    el.style.left = ((p.x + 1) / 2 * c.clientWidth) + "px"; el.style.top = ((1 - p.y) / 2 * c.clientHeight - 8) + "px";
+  }
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (document.hidden) return;
+    if (playing && now >= nextAt) { nextEvent(now); }
+    const f = Math.min(1, (now - evStart) / interval);
+    updatePhaseUI(f);
+    if (!S.ok) return;
+    const c = S.renderer.domElement, w = c.clientWidth, h = c.clientHeight, pr = S.renderer.getPixelRatio();
+    if (c.width !== Math.round(w * pr) || c.height !== Math.round(h * pr)) {
+      S.renderer.setSize(w, h, false); S.composer.setSize(w, h); S.camera.aspect = w / h; S.camera.updateProjectionMatrix();
+    }
+    if (S.camGoal) {
+      S.camera.position.lerp(S.camGoal.pos, 0.06); S.controls.target.lerp(S.camGoal.tgt, 0.06);
+      if (S.camera.position.distanceTo(S.camGoal.pos) < 0.2) S.camGoal = null;
+    }
+    S.controls.autoRotate = $("spin").checked && !reduce;
+    S.controls.update();
+    // stored muons circulate (display-slowed cyclotron motion, clockwise from +z)
+    const om = reduce ? 0 : now / 1000 * 1.1;
+    for (let i = 0; i < S.muPh.length; i++) {
+      const v = V3(g.r0 * Math.cos(S.muPh[i] - om), g.r0 * Math.sin(S.muPh[i] - om), S.muZ[i] * 10);
+      S.muPos[3 * i] = v.x; S.muPos[3 * i + 1] = v.y; S.muPos[3 * i + 2] = v.z;
+    }
+    S.muGeo.attributes.position.needsUpdate = true;
+    animate3D(reduce ? 1 : f, now);
+    // labels
+    S.labels.forEach((L) => project(L.el, L.pos));
+    const F = S.E && S.E.fits[0], fp = prog(TL.fit, reduce ? 1 : f);
+    if (F && fp > 0.8) { S.trkLabel.textContent = `e⁺  ${F.t.p.toFixed(1)} MeV/c  ·  θ ${(F.t.theta * 180 / Math.PI).toFixed(0)}°`; project(S.trkLabel, F.end); project(S.vtxLabel, F.vtx.position); }
+    else { project(S.trkLabel, null, false); project(S.vtxLabel, null, false); }
+    S.composer.render();
+  }
+
+  // =================================================================== 2D panels
+  function setupCanvas(c) {
+    const r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    if (!r.width || !r.height) return null;
+    c.width = Math.round(r.width * d); c.height = Math.round(r.height * d);
+    const ctx = c.getContext("2d"); ctx.setTransform(d, 0, 0, d, 0, 0); return { ctx, w: r.width, h: r.height };
+  }
+  function drawXY(fitShown) {
+    const cv = setupCanvas($("xy")); if (!cv) return; const { ctx, w, h } = cv;
+    const RV = 60, Sx = Math.min(w, h) / 2 / (RV + 3), cx0 = w / 2, cy0 = h / 2, X = (x) => cx0 + x * Sx, Y = (y) => cy0 - y * Sx;
+    ctx.strokeStyle = COL.edge; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx0 - RV * Sx, cy0); ctx.lineTo(cx0 + RV * Sx, cy0); ctx.moveTo(cx0, cy0 - RV * Sx); ctx.lineTo(cx0, cy0 + RV * Sx); ctx.stroke();
+    g.cyl.forEach((c) => { ctx.strokeStyle = "rgba(110,160,255,0.35)"; ctx.beginPath(); ctx.arc(cx0, cy0, c.r * Sx, 0, TWO_PI); ctx.stroke(); });
+    ctx.setLineDash([2, 3]); ctx.strokeStyle = COL.cyan; ctx.beginPath(); ctx.arc(cx0, cy0, g.r0 * Sx, 0, TWO_PI); ctx.stroke(); ctx.setLineDash([]);
+    ctx.save(); ctx.beginPath(); ctx.arc(cx0, cy0, RV * Sx, 0, TWO_PI); ctx.clip();
+    if (ev) {
+      ev.raw.forEach((hh) => { const c = g.cyl[hh.cyl], ph = c.chPhi[hh.ch], r1 = c.r + (hh.s ? -0.6 : 0.6), r2 = c.r + (hh.s ? -3 : 3);
+        ctx.strokeStyle = hh.truth < 0 ? COL.amber : COL.mute; ctx.beginPath(); ctx.moveTo(X(r1 * Math.cos(ph)), Y(r1 * Math.sin(ph))); ctx.lineTo(X(r2 * Math.cos(ph)), Y(r2 * Math.sin(ph))); ctx.stroke(); });
+      ev.tracks.forEach((t) => { ctx.setLineDash([4, 4]); ctx.strokeStyle = COL.cyan; ctx.beginPath(); ctx.arc(X(t.cx), Y(t.cy), t.R * Sx, 0, TWO_PI); ctx.stroke(); ctx.setLineDash([]); });
+      if (rec && fitShown) {
+        const on = new Set(); rec.tracks.forEach((t) => t.hits.forEach((p) => on.add(p)));
+        rec.pts.forEach((p) => { if (!on.has(p) && p.ghost && !$("ghosts").checked) return;
+          ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), on.has(p) ? 2.6 : 1.8, 0, TWO_PI);
+          if (on.has(p)) { ctx.fillStyle = COL.amber; ctx.fill(); } else { ctx.strokeStyle = COL.dim; ctx.stroke(); } });
+        rec.tracks.forEach((t) => { ctx.shadowColor = COL.acc; ctx.shadowBlur = 8; ctx.strokeStyle = COL.accHi; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(X(t.xc), Y(t.yc), t.R * Sx, 0, TWO_PI); ctx.stroke(); ctx.shadowBlur = 0; ctx.lineWidth = 1; });
+      }
+    }
+    ctx.restore();
+    ctx.fillStyle = COL.dim; ctx.font = "9px " + css("--mono"); ctx.fillText("±60 mm", 6, h - 6);
+  }
+  function drawZU(fitShown) {
+    const cv = setupCanvas($("zu")); if (!cv) return; const { ctx, w, h } = cv;
+    const m = { l: 34, r: 6, t: 8, b: 20 }, W = w - m.l - m.r, H = h - m.t - m.b;
+    const trk = rec && fitShown ? rec.tracks[0] : null;
     let umax = TWO_PI * 2;
     if (trk) umax = Math.max(TWO_PI, Math.ceil((Math.max(...trk.U.filter((u, i) => trk.w[i])) - trk.Uv) / Math.PI) * Math.PI);
     const X = (u) => m.l + (u / umax) * W, Y = (z) => m.t + (1 - (z + 200) / 400) * H;
-    ctx.font = "11px " + css("--sans"); ctx.fillStyle = COL.mute; ctx.strokeStyle = COL.rule; ctx.lineWidth = 1;
-    [-200, -100, 0, 100, 200].forEach((z) => {
-      ctx.globalAlpha = z === 0 ? 1 : 0.6;
-      ctx.beginPath(); ctx.moveTo(m.l, Y(z) + 0.5); ctx.lineTo(m.l + W, Y(z) + 0.5); ctx.stroke(); ctx.globalAlpha = 1;
-      ctx.textAlign = "right"; ctx.fillText(z, m.l - 8, Y(z) + 4);
-    });
+    ctx.font = "9px " + css("--mono"); ctx.fillStyle = COL.dim; ctx.strokeStyle = COL.edge; ctx.lineWidth = 1;
+    [-200, 0, 200].forEach((z) => { ctx.beginPath(); ctx.moveTo(m.l, Y(z) + 0.5); ctx.lineTo(m.l + W, Y(z) + 0.5); ctx.stroke(); ctx.textAlign = "right"; ctx.fillText(z, m.l - 5, Y(z) + 3); });
     ctx.textAlign = "center";
-    for (let k = 0; k <= umax / Math.PI + 1e-9; k++) {
-      const lab = k === 0 ? "0" : k === 1 ? "π" : k + "π";
-      ctx.fillText(lab, X(k * Math.PI), h - m.b + 18);
-    }
-    ctx.fillText("turning angle from vertex, U", m.l + W / 2, h - 4);
-    ctx.save(); ctx.translate(12, m.t + H / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("z (mm)", 0, 0); ctx.restore();
+    for (let k = 0; k <= umax / Math.PI + 1e-9; k++) ctx.fillText(k === 0 ? "0" : (k === 1 ? "π" : k + "π"), X(k * Math.PI), h - 6);
     ctx.textAlign = "left";
-    if (!trk) {
-      ctx.fillStyle = COL.mute; ctx.fillText(rec && phase >= 3 ? "no track found in this event" : "waiting for the fit…", m.l + 10, m.t + 18);
-      return;
-    }
-    // truth line
+    if (!trk) { ctx.fillStyle = COL.mute; ctx.fillText(rec && fitShown ? "no track" : "fitting…", m.l + 6, m.t + 14); return; }
     const t = ev.tracks[trk.truth] || ev.tracks[0];
-    ctx.strokeStyle = COL.cyan; ctx.setLineDash([5, 5]); ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(X(0), Y(t.vz)); ctx.lineTo(X(umax), Y(t.vz + t.h * umax)); ctx.stroke(); ctx.setLineDash([]);
-    // fit line (relative to vertex)
     ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, W, H); ctx.clip();
-    ctx.strokeStyle = COL.acc; ctx.lineWidth = 2.6;
-    ctx.beginPath(); ctx.moveTo(X(0), Y(trk.vz)); ctx.lineTo(X(umax), Y(trk.vz + trk.h * umax)); ctx.stroke();
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = COL.cyan; ctx.beginPath(); ctx.moveTo(X(0), Y(t.vz)); ctx.lineTo(X(umax), Y(t.vz + t.h * umax)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.shadowColor = COL.acc; ctx.shadowBlur = 8; ctx.strokeStyle = COL.accHi; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(X(0), Y(trk.vz)); ctx.lineTo(X(umax), Y(trk.vz + trk.h * umax)); ctx.stroke(); ctx.shadowBlur = 0; ctx.lineWidth = 1;
+    trk.all.forEach((p, i) => { const u = trk.U[i] - trk.Uv; ctx.beginPath(); ctx.arc(X(u), Y(p.z), 2.6, 0, TWO_PI);
+      if (trk.w[i]) { ctx.fillStyle = COL.amber; ctx.fill(); } else { ctx.strokeStyle = COL.dim; ctx.stroke(); } });
     ctx.restore();
-    // points, lollipop from the fit line
-    trk.all.forEach((p, i) => {
-      const u = trk.U[i] - trk.Uv, used = trk.w[i];
-      const zf = trk.vz + trk.h * u;
-      ctx.strokeStyle = COL.mute; ctx.globalAlpha = 0.6; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(X(u), Y(zf)); ctx.lineTo(X(u), Y(p.z)); ctx.stroke(); ctx.globalAlpha = 1;
-      ctx.beginPath(); ctx.arc(X(u), Y(p.z), 3.4, 0, TWO_PI);
-      if (used) { ctx.fillStyle = p.ghost ? COL.mute : COL.ink; ctx.fill(); }
-      else { ctx.strokeStyle = COL.warn; ctx.stroke(); }
-    });
-    // vertex
-    ctx.fillStyle = COL.warn; ctx.beginPath(); ctx.arc(X(0), Y(trk.vz), 3.6, 0, TWO_PI); ctx.fill();
-    ctx.fillStyle = COL.mute;
-    ctx.fillText(`h = ${trk.h.toFixed(1)} mm/rad   pitch = ${(TWO_PI * trk.h).toFixed(0)} mm`, m.l + 8, m.t + 14);
+    ctx.fillStyle = COL.mute; ctx.fillText(`pitch ${(TWO_PI * trk.h).toFixed(0)} mm/turn`, m.l + 6, m.t + 12);
+  }
+  function drawHist() {
+    const cv = setupCanvas($("hist")); if (!cv) return; const { ctx, w, h } = cv;
+    const nb = 31, lo = -0.1, hi = 0.1, bins = new Array(nb).fill(0);
+    stats.dp.forEach((v) => { const b = Math.floor((v - lo) / (hi - lo) * nb); if (b >= 0 && b < nb) bins[b]++; });
+    const mx = Math.max(1, ...bins), bw = w / nb;
+    bins.forEach((n, i) => { const bh = (n / mx) * (h - 10); ctx.fillStyle = i === (nb >> 1) ? COL.accHi : "rgba(34,81,255,0.75)";
+      ctx.fillRect(i * bw + 1, h - bh, bw - 2, bh); });
+    ctx.strokeStyle = COL.mute; ctx.beginPath(); ctx.moveTo(w / 2 + 0.5, 0); ctx.lineTo(w / 2 + 0.5, h); ctx.stroke();
   }
 
-  // ------------------------------------------------------------- tables
+  // =================================================================== text panels
   const f1 = (v, d = 1) => (isFinite(v) ? v.toFixed(d) : "–");
   const ang = (a) => Math.atan2(Math.sin(a), Math.cos(a));
-  function fillTable() {
-    const tb = $("tb");
-    if (!rec || phase < 3) { tb.innerHTML = `<tr><td colspan="4" class="res">fitting…</td></tr>`; return; }
+  const mad = (v) => { if (v.length < 5) return NaN; const s = v.slice().sort((a, b) => a - b), md = s[s.length >> 1];
+    const d = v.map((x) => Math.abs(x - md)).sort((a, b) => a - b); return 1.4826 * d[d.length >> 1]; };
+  function fillTrack(show) {
+    const kv = $("kv");
+    if (!show) { kv.innerHTML = `<div class="k">status</div><div class="v" style="font-size:12px;color:var(--mute)">fitting…</div><div class="t"></div>`; return; }
     const trk = rec.tracks[0];
-    if (!trk) { tb.innerHTML = `<tr><td colspan="4" class="res">no track: ${ev.tracks[0].ncross} crossings, ${rec.pts.length} space points</td></tr>`; return; }
-    const t = ev.tracks[trk.truth] || ev.tracks[0];
-    const row = (q, u, r, tr, res) => `<tr><td>${q} <span class="unit">${u}</span></td><td class="reco">${r}</td><td class="tru">${tr}</td><td class="res">${res}</td></tr>`;
-    tb.innerHTML = [
-      row("p", "MeV/c", f1(trk.p), f1(t.p), f1(100 * (trk.p / t.p - 1)) + "%"),
-      row("p<sub>T</sub>", "MeV/c", f1(trk.pt), f1(t.pt), f1(trk.pt - t.pt, 2)),
-      row("p<sub>z</sub>", "MeV/c", f1(trk.pz), f1(t.pz), Math.sign(trk.pz) === Math.sign(t.pz) ? f1(trk.pz - t.pz, 2) : "sign flip"),
-      row("θ", "mrad", f1(1e3 * trk.theta, 0), f1(1e3 * t.theta, 0), f1(1e3 * (trk.theta - t.theta), 0)),
-      row("φ", "mrad", f1(1e3 * trk.phi, 0), f1(1e3 * t.phi, 0), f1(1e3 * ang(trk.phi - t.phi), 0)),
-      row("vertex z", "mm", f1(trk.vz), f1(t.vz), f1(trk.vz - t.vz)),
-      row("points", "", `${trk.nh}`, `${t.ncross} crossings`, `${Math.round(100 * trk.ghostFrac)}% ghosts`),
-      row("χ²/ndf", "", f1(trk.chi2ndf, 2), "", ""),
+    if (!trk) { kv.innerHTML = `<div class="k">status</div><div class="v flip" style="font-size:12px">no track</div><div class="t">${ev.tracks[0].ncross} crossings</div>`; $("trkTag").textContent = "missed"; return; }
+    const t = ev.tracks[trk.truth] || ev.tracks[0], flip = Math.sign(trk.pz) !== Math.sign(t.pz);
+    $("trkTag").textContent = rec.tracks.length > 1 ? `track 1 of ${rec.tracks.length}` : "fit vs truth";
+    const row = (k, u, v, tv, res, scale, cls = "") => {
+      const x = isFinite(res) ? Math.max(-1, Math.min(1, res / scale)) : 0, bad = Math.abs(res / scale) > 0.5;
+      return `<div class="k">${k}<small>${u}</small></div><div class="v ${cls}">${v}</div><div class="t">${tv}</div>
+        <div class="resbar"><i class="${bad ? "bad" : ""}" style="left:${50 + Math.min(0, x) * 50}%;width:${Math.abs(x) * 50}%"></i></div>`;
+    };
+    kv.innerHTML = [
+      row("p", "MeV/c", f1(trk.p), f1(t.p), trk.p / t.p - 1, 0.1),
+      row("pT", "MeV/c", f1(trk.pt), f1(t.pt), trk.pt / t.pt - 1, 0.1),
+      row("pz", "MeV/c", f1(trk.pz), f1(t.pz), trk.pz - t.pz, 6, flip ? "flip" : ""),
+      row("θ", "mrad", f1(1e3 * trk.theta, 0), f1(1e3 * t.theta, 0), trk.theta - t.theta, 0.08),
+      row("φ", "mrad", f1(1e3 * trk.phi, 0), f1(1e3 * t.phi, 0), ang(trk.phi - t.phi), 0.2),
+      row("vertex z", "mm", f1(trk.vz), f1(t.vz), trk.vz - t.vz, 20),
+      `<div class="k">hits</div><div class="v">${trk.nh}</div><div class="t">${Math.round(100 * trk.ghostFrac)}% ghost</div>`,
+      `<div class="k">χ²/ndf</div><div class="v">${f1(trk.chi2ndf, 2)}</div><div class="t">${rec.pts.length} pts</div>`,
     ].join("");
   }
-  const mad = (v) => {
-    if (v.length < 5) return NaN;
-    const s = v.slice().sort((a, b) => a - b), md = s[s.length >> 1];
-    const d = v.map((x) => Math.abs(x - md)).sort((a, b) => a - b); return 1.4826 * d[d.length >> 1];
-  };
   function updateStats() {
-    stats.n++;
     ev.tracks.forEach((t, m) => {
       if (t.ncross < 3) return;
       stats.acc++;
       const k = rec.tracks.find((r) => r.truth === m && r.purity >= 0.6);
       if (!k) return;
-      stats.found++;
-      stats.dp.push(k.p / t.p - 1); stats.dth.push(k.theta - t.theta); stats.dph.push(ang(k.phi - t.phi));
+      stats.found++; stats.dp.push(k.p / t.p - 1); stats.dth.push(k.theta - t.theta); stats.dph.push(ang(k.phi - t.phi));
       stats.flips += Math.sign(k.pz) !== Math.sign(t.pz); stats.nm++;
       ["dp", "dth", "dph"].forEach((key) => { if (stats[key].length > 600) stats[key].shift(); });
     });
     stats.ms.push(rec.ms); if (stats.ms.length > 200) stats.ms.shift();
-    $("nev").textContent = stats.n;
-    $("k_eff").textContent = stats.acc ? (100 * stats.found / stats.acc).toFixed(0) + "%" : "–";
+    const eff = stats.acc ? stats.found / stats.acc : 0;
+    $("gArc").setAttribute("stroke-dasharray", `${(239 * eff).toFixed(1)} 239`);
+    $("gTxt").textContent = stats.acc ? (100 * eff).toFixed(0) + "%" : "–";
+    $("nev").textContent = `${nEvt} events`;
     $("k_dp").textContent = isFinite(mad(stats.dp)) ? (100 * mad(stats.dp)).toFixed(1) + "%" : "–";
     $("k_th").textContent = isFinite(mad(stats.dth)) ? (1e3 * mad(stats.dth)).toFixed(0) : "–";
     $("k_ph").textContent = isFinite(mad(stats.dph)) ? (1e3 * mad(stats.dph)).toFixed(0) : "–";
     $("k_fl").textContent = stats.nm ? (100 * stats.flips / stats.nm).toFixed(1) + "%" : "–";
-    const ms = stats.ms.slice().sort((a, b) => a - b);
-    $("k_ms").textContent = ms.length ? ms[ms.length >> 1].toFixed(1) : "–";
+    const ms = stats.ms.slice().sort((a, b) => a - b); $("k_ms").textContent = ms.length ? ms[ms.length >> 1].toFixed(1) : "–";
+    drawHist();
   }
-  function status() {
-    const s = $("status");
-    if (!rec || phase < 3) { s.className = "pill wait"; s.textContent = `event ${stats.n + 1}`; return; }
-    const n = rec.tracks.length;
-    s.className = n ? "pill" : "pill miss";
-    s.textContent = n ? `event ${stats.n} · ${n} track${n > 1 ? "s" : ""} · ${rec.ms.toFixed(1)} ms` :
-      `event ${stats.n} · no track (${ev.tracks[0].ncross} crossings)`;
-  }
-  // ------------------------------------------------------------- 3D view
-  // detector (x, y, z) -> three.js (x, z, -y): the solenoid axis points up; 1 unit = 10 mm
-  const V3 = (x, y, z) => new THREE.Vector3(x / 10, z / 10, -y / 10);
-  const D3 = { ok: false, dirty: true };
-  function init3D() {
-    if (!window.THREE) { $("d3note").textContent = "The 3D view needs the three.js library, which did not load."; return; }
-    const canvas = $("d3");
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(css("--navy"));
-    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 500);
-    const stat = new THREE.Group(), dyn = new THREE.Group();
-    scene.add(stat, dyn);
-    // stereo fibres, one LineSegments per layer
-    const nz = 24;
-    g.cyl.forEach((c) => {
-      [1, -1].forEach((sgn, s) => {
-        const rr = c.r + (s ? 0.6 : 0), pos = [];
-        for (let f = 0; f < c.nfib; f += 6) {
-          const p0 = (f + 0.5) * c.dphi;
-          for (let k = 0; k < nz; k++) {
-            for (const kk of [k, k + 1]) {
-              const z = -g.L + (2 * g.L * kk) / nz, ph = p0 + sgn * z * c.tan / c.r, v = V3(rr * Math.cos(ph), rr * Math.sin(ph), z);
-              pos.push(v.x, v.y, v.z);
-            }
-          }
-        }
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-        stat.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x2a4f86, transparent: true, opacity: 0.32 })));
-      });
-      [-g.L, g.L].forEach((z) => stat.add(ringLine(c.r, z, 0x5d7ea8, 0.7)));
-    });
-    stat.add(ringLine(g.r0, 0, COL.cyan, 0.9));
-    Object.assign(D3, { ok: true, renderer, scene, camera, dyn, az: -0.7, el: 0.5, dist: 84, auto: true, last: 0 });
-    // pointer orbit
-    let drag = null;
-    canvas.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY }; D3.auto = false; canvas.setPointerCapture(e.pointerId); });
-    canvas.addEventListener("pointermove", (e) => {
-      if (!drag) return;
-      D3.az -= (e.clientX - drag.x) * 0.008; D3.el = Math.max(-1.4, Math.min(1.4, D3.el + (e.clientY - drag.y) * 0.008));
-      drag = { x: e.clientX, y: e.clientY }; D3.dirty = true;
-    });
-    const end = () => { drag = null; clearTimeout(D3.resume); D3.resume = setTimeout(() => (D3.auto = !reduce), 4000); };
-    canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
-    canvas.addEventListener("wheel", (e) => { e.preventDefault(); D3.dist = Math.max(30, Math.min(220, D3.dist * Math.exp(e.deltaY * 0.001))); D3.dirty = true; }, { passive: false });
-    canvas.addEventListener("dblclick", () => { Object.assign(D3, { az: -0.7, el: 0.5, dist: 84, dirty: true }); });
-    D3.auto = !reduce;
-    requestAnimationFrame(loop3D);
-  }
-  function ringLine(r, z, color, opacity) {
-    const pts = []; for (let k = 0; k <= 120; k++) { const a = TWO_PI * k / 120; pts.push(V3(r * Math.cos(a), r * Math.sin(a), z)); }
-    return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: true, opacity }));
-  }
-  function helixPts(xc, yc, Rr, h, psiV, zV, umax) {
-    const pts = []; const n = Math.max(40, Math.ceil(umax * 30));
-    for (let k = 0; k <= n; k++) {
-      const u = umax * k / n, z = zV + h * u;
-      if (Math.abs(z) > g.L) break;
-      pts.push(V3(xc + Rr * Math.cos(psiV - u), yc + Rr * Math.sin(psiV - u), z));
-    }
-    return pts;
-  }
-  function update3D() {
-    if (!D3.ok) return;
-    D3.dyn.children.slice().forEach((o) => { D3.dyn.remove(o); o.geometry && o.geometry.dispose(); o.material && o.material.dispose(); });
-    if (!ev) return;
-    // fired fibres
-    const pos = [], nz = 24;
-    ev.raw.forEach((hh) => {
-      const c = g.cyl[hh.cyl], sgn = hh.s ? -1 : 1, rr = c.r + (hh.s ? 0.6 : 0), p0 = c.chPhi[hh.ch];
-      for (let k = 0; k < nz; k++) for (const kk of [k, k + 1]) {
-        const z = -g.L + (2 * g.L * kk) / nz, ph = p0 + sgn * z * c.tan / c.r, v = V3(rr * Math.cos(ph), rr * Math.sin(ph), z);
-        pos.push(v.x, v.y, v.z);
-      }
-    });
-    const fg = new THREE.BufferGeometry(); fg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-    D3.dyn.add(new THREE.LineSegments(fg, new THREE.LineBasicMaterial({ color: COL.ink, transparent: true, opacity: 0.55 })));
-    // truth helices
-    ev.tracks.forEach((t) => {
-      const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(helixPts(t.cx, t.cy, t.R, t.h, t.psi0, t.vz, TWO_PI * 3)),
-        new THREE.LineDashedMaterial({ color: COL.cyan, dashSize: 0.5, gapSize: 0.35 }));
-      ln.computeLineDistances(); D3.dyn.add(ln);
-    });
-    if (phase < 1 || !rec) return;
-    const onTrack = new Set(); rec.tracks.forEach((t) => t.hits.forEach((p) => onTrack.add(p)));
-    const showG = $("ghosts").checked, gp = [];
-    rec.pts.forEach((p) => { if (!(phase >= 3 && onTrack.has(p)) && (showG || !p.ghost)) { const v = V3(p.x, p.y, p.z); gp.push(v.x, v.y, v.z); } });
-    const pg = new THREE.BufferGeometry(); pg.setAttribute("position", new THREE.Float32BufferAttribute(gp, 3));
-    D3.dyn.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: COL.ghost, size: 0.35 })));
-    if (phase < 3) return;
-    const sph = new THREE.SphereGeometry(0.22, 12, 8), sm = new THREE.MeshBasicMaterial({ color: COL.warn });
-    rec.tracks.forEach((t) => {
-      t.hits.forEach((p) => { const m = new THREE.Mesh(sph, sm); m.position.copy(V3(p.x, p.y, p.z)); D3.dyn.add(m); });
-      const Umax = Math.max(...t.U.filter((u, i) => t.w[i]));
-      const pts = helixPts(t.xc, t.yc, t.R, t.h, Math.atan2(t.vy - t.yc, t.vx - t.xc), t.vz, Math.max(Umax - t.Uv, 0.5) + 0.3);
-      if (pts.length > 1) D3.dyn.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 2, 0.09, 6, false),
-        new THREE.MeshBasicMaterial({ color: COL.acc })));
-      const vm = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), new THREE.MeshBasicMaterial({ color: COL.cyan }));
-      vm.position.copy(V3(t.vx, t.vy, t.vz)); D3.dyn.add(vm);
-    });
-  }
-  function loop3D(ts) {
-    requestAnimationFrame(loop3D);
-    if (!D3.ok || document.hidden) return;
-    const c = D3.renderer.domElement, w = c.clientWidth, h = c.clientHeight;
-    if (c.width !== Math.round(w * D3.renderer.getPixelRatio()) || c.height !== Math.round(h * D3.renderer.getPixelRatio())) {
-      D3.renderer.setSize(w, h, false); D3.camera.aspect = w / h; D3.camera.updateProjectionMatrix(); D3.dirty = true;
-    }
-    if (D3.auto) { D3.az += ((ts - (D3.last || ts)) / 1000) * 0.18; D3.dirty = true; }
-    D3.last = ts;
-    if (!D3.dirty) return;
-    const { az, el, dist } = D3;
-    D3.camera.position.set(dist * Math.cos(el) * Math.cos(az), dist * Math.sin(el), dist * Math.cos(el) * Math.sin(az));
-    D3.camera.lookAt(0, 0, 0);
-    D3.renderer.render(D3.scene, D3.camera);
-    D3.dirty = false;
+  function pushLog() {
+    const trk = rec.tracks[0], t = ev.tracks[0];
+    const line = trk ? `<span class="ok">EVT ${String(nEvt).padStart(6, "0")}</span>  e⁺ p ${f1(trk.p)} MeV/c  θ ${f1(trk.theta * 180 / Math.PI, 0)}°  ${trk.nh} hits  ${f1(rec.ms)} ms`
+      : `<span class="no">EVT ${String(nEvt).padStart(6, "0")}</span>  no track · ${t.ncross} crossings · ${rec.pts.length} pts`;
+    logLines.unshift(line); if (logLines.length > 4) logLines.pop();
+    $("log").innerHTML = logLines.map((l) => `<div>${l}</div>`).join("");
   }
 
-  function render() {
-    for (let i = 0; i < 4; i++) $("ph" + i).classList.toggle("on", i === phase);
-    drawXY(); drawZU(); fillTable(); status(); update3D(); D3.dirty = true;
+  let lastPhase = -1, statsDone = false;
+  function updatePhaseUI(f) {
+    const ff = reduce || interval < 400 ? 1 : f;
+    const ps = [prog(TL.flight, ff), prog(TL.points, ff), prog(TL.seed, ff), prog(TL.fit, ff)];
+    ps.forEach((p, i) => { const el = $("st" + i); el.querySelector("i").style.width = (100 * p) + "%";
+      el.classList.toggle("on", p > 0 && p < 1); el.classList.toggle("done", p >= 1); });
+    const phase = ps[3] >= 1 ? 3 : ps[3] > 0 ? 2.5 : ps[2] > 0 ? 2 : ps[1] > 0 ? 1 : 0;
+    if (phase !== lastPhase) {
+      lastPhase = phase;
+      const shown = phase >= 3;
+      drawXY(shown); drawZU(shown); fillTrack(shown);
+      if (shown && !statsDone && rec) { statsDone = true; updateStats(); pushLog(); badge(); }
+    }
+  }
+  function badge() {
+    const b = $("badge"), n = rec.tracks.length;
+    b.classList.toggle("miss", !n); b.classList.toggle("live", playing);
+    $("badgeTxt").textContent = n ? `${n} track${n > 1 ? "s" : ""} · ${f1(rec.ms)} ms` : "no track";
   }
 
-  // ------------------------------------------------------------- loop
-  let phaseTimers = [];
-  function nextEvent() {
-    phaseTimers.forEach(clearTimeout); phaseTimers = [];
+  function nextEvent(now) {
+    now = now || performance.now();
     ev = simulate(g, R, { mult: $("pile").checked ? 2 : 1 });
     rec = reconstruct(g, ev.raw);
-    if (reduce || interval < 400) { phase = 3; updateStats(); render(); return; }
-    phase = 0; render();
-    const dt = interval * 0.18;
-    [1, 2, 3].forEach((ph) => phaseTimers.push(setTimeout(() => {
-      phase = ph; if (ph === 3) updateStats(); render();
-    }, dt * ph)));
+    nEvt++; $("evn").textContent = String(nEvt).padStart(6, "0");
+    $("pipeTag").textContent = `${ev.raw.length} SiPM hits · ${rec.pts.length} points · ${rec.nSeeds} seeds`;
+    evStart = now; nextAt = now + interval; lastPhase = -1; statsDone = false;
+    buildEvent();
+    if (S.camGoal === null && document.querySelector('[data-cam="track"][aria-pressed="true"]')) setTimeout(() => goCam("track"), interval * 0.85);
   }
-  function schedule() { clearInterval(timer); if (playing) timer = setInterval(nextEvent, interval); }
-  $("play").addEventListener("click", () => {
-    playing = !playing; $("play").textContent = playing ? "Pause" : "Play";
-    $("play").classList.toggle("primary", playing); schedule();
-  });
-  $("step").addEventListener("click", () => { if (playing) { playing = false; $("play").textContent = "Play"; $("play").classList.remove("primary"); schedule(); } nextEvent(); });
-  $("rate").addEventListener("change", (e) => { interval = +e.target.value; schedule(); });
-  $("ghosts").addEventListener("change", render);
-  window.addEventListener("resize", () => { drawXY(); drawZU(); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) clearInterval(timer); else schedule(); });
 
-  init3D();
-  // warm start: a handful of events so the panel opens filled in
-  for (let i = 0; i < 30; i++) { ev = simulate(g, R, { mult: 1 }); rec = reconstruct(g, ev.raw); phase = 3; updateStats(); }
-  render();
-  schedule();
+  // =================================================================== controls
+  function setPlaying(p) { playing = p; const b = $("play"); b.firstChild.textContent = p ? "Pause" : "Play"; b.classList.toggle("on", p);
+    if (p) nextAt = performance.now(); $("badge").classList.toggle("live", p); }
+  $("play").addEventListener("click", () => setPlaying(!playing));
+  $("step").addEventListener("click", () => { setPlaying(false); nextEvent(); });
+  document.querySelectorAll("[data-ms]").forEach((b) => b.addEventListener("click", () => {
+    interval = +b.dataset.ms; document.querySelectorAll("[data-ms]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); nextAt = Math.min(nextAt, performance.now() + interval);
+  }));
+  document.querySelectorAll("[data-cam]").forEach((b) => b.addEventListener("click", () => goCam(b.dataset.cam)));
+  $("ghosts").addEventListener("change", () => { lastPhase = -1; });
+  $("spin").addEventListener("change", () => { if ($("spin").checked) setCamBtn(null); });
+  const ov = $("overlay");
+  $("renderBtn").addEventListener("click", () => (ov.hidden = !ov.hidden));
+  ov.addEventListener("click", () => (ov.hidden = true));
+  window.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" && e.key !== " ") return;
+    const k = e.key.toLowerCase();
+    if (k === " ") { e.preventDefault(); setPlaying(!playing); }
+    else if (k === "n") { setPlaying(false); nextEvent(); }
+    else if (k === "g") { $("ghosts").checked = !$("ghosts").checked; lastPhase = -1; }
+    else if (k === "p") $("pile").checked = !$("pile").checked;
+    else if (k === "b") ov.hidden = !ov.hidden;
+    else if (k === "escape") ov.hidden = true;
+    else if ("1234".includes(k)) goCam(["iso", "beam", "side", "track"][+k - 1]);
+  });
+  window.addEventListener("resize", () => { lastPhase = -1; drawHist(); });
+
+  // warm start so the panels open filled in
+  S.ok = init3D() || false;
+  for (let i = 0; i < 40; i++) { ev = simulate(g, R, { mult: 1 }); rec = reconstruct(g, ev.raw); nEvt++; updateStats(); pushLog(); }
+  nextEvent(performance.now());
+  requestAnimationFrame(frame);
 })();
 </script>

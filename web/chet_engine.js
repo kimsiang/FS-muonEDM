@@ -90,7 +90,7 @@
               if (R.u() > o.eff) continue;
               const tn = s === 0 ? cy_.tan : -cy_.tan;
               const fib = Math.min(Math.floor(mod2pi(phi - z * tn / cy_.r) / cy_.dphi), cy_.nfib - 1);
-              hits.push({ cyl: ci, s, ch: Math.floor(fib / g.fpc), truth: m, hid,
+              hits.push({ cyl: ci, s, ch: Math.floor(fib / g.fpc), truth: m, hid, D,
                 t: t + (g.zRead - z) / (cy_.cos * g.vf) + o.jitter * R.n() });
             }
             hid++;
@@ -106,7 +106,7 @@
       let k = Math.floor(R.u() * g.nChannels), ci = 0;
       while (k >= 2 * g.cyl[ci].nch) { k -= 2 * g.cyl[ci].nch; ci++; }
       const s = k >= g.cyl[ci].nch ? 1 : 0;
-      hits.push({ cyl: ci, s, ch: k - s * g.cyl[ci].nch, truth: -1, hid: -1, t: (o.window + 10) * R.u() });
+      hits.push({ cyl: ci, s, ch: k - s * g.cyl[ci].nch, truth: -1, hid: -1, D: -1, t: (o.window + 10) * R.u() });
     }
     return { tracks, raw: deadTime(hits, o.dead), nNoise };
   }
