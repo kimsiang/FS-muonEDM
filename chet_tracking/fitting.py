@@ -97,10 +97,11 @@ def fit_tracks(xp, cand: dict, geom: CHeTGeometry, gd: dict, cfg: RecoConfig):
     phi = xp.arctan2(-xp.cos(psi_v), xp.sin(psi_v))   # clockwise tangent (e+)
 
     truth, purity = _majority(xp, cand["truth"], w > 0)
+    ghost_frac = ((cand["ghost"] & (w > 0)).sum(1) / xp.maximum(nh, 1)) if "ghost" in cand else xp.zeros_like(nh)
     return dict(event=cand["event"], p=p, pt=pt, pz=pz, theta=theta, phi=phi,
                 vx=xc + R * xp.cos(psi_v), vy=yc + R * xp.sin(psi_v), vz=z_v,
                 xc=xc, yc=yc, R=R, h=h, nhits=nh.astype(xp.int32),
-                chi2_ndf=chi2 / ndf, truth=truth, purity=purity)
+                chi2_ndf=chi2 / ndf, truth=truth, purity=purity, ghost_frac=ghost_frac)
 
 
 def _majority(xp, tr, m):

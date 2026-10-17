@@ -19,6 +19,7 @@ import numpy as np
 
 from .backend import compact
 from .geometry import C_MM_PER_NS, K_PT, M_E, M_MU, TAU_MU_NS, CHeTGeometry, digitize
+from .hits import apply_dead_time
 
 TWO_PI = 2 * np.pi
 
@@ -37,6 +38,7 @@ class SimConfig:
     fiber_efficiency: float = 0.95
     time_jitter_ns: float = 0.5
     dark_rate_hz: float = 55e3
+    channel_dead_time_ns: float = 10.0   # same-SiPM hits closer than this merge
 
 
 def _michel_x(xp, u):
@@ -65,7 +67,7 @@ def simulate_events(n_events: int, geom: CHeTGeometry, xp, seed: int = 1,
                     cfg: SimConfig | None = None):
     """Return (raw_hits, truth) dictionaries of device arrays.
 
-    raw_hits: ch, t, truth (track slot or -1 for noise), valid   -- shape [E, H]
+    raw_hits: ch, t, truth (track slot or -1 for noise), hid (crossing id), valid   -- shape [E, H]
     truth:    valid, p, pt, pz, theta, phi, vx, vy, vz, t0, t_decay_us, n_cross -- [E, M]
     """
     cfg = cfg or SimConfig()
@@ -165,6 +167,10 @@ def simulate_events(n_events: int, geom: CHeTGeometry, xp, seed: int = 1,
 
     sig_ch, sig_t = ch.reshape(E, -1), t_hit.reshape(E, -1)
     sig_tr, sig_ok = slot.reshape(E, -1).astype(xp.int32), fired.reshape(E, -1)
+    # crossing id (same for the u and v hit of one physical crossing)
+    sig_hid = xp.broadcast_to(xp.arange(sig_ch.shape[1] // 2, dtype=xp.int32)[:, None],
+                              (sig_ch.shape[1] // 2, 2)).reshape(1, -1)
+    sig_hid = xp.broadcast_to(sig_hid, sig_ch.shape)
 
     # --- SiPM dark counts ------------------------------------------------------
     lam = cfg.dark_rate_hz * (cfg.window_ns + 10.0) * 1e-9 * geom.n_channels
@@ -178,8 +184,10 @@ def simulate_events(n_events: int, geom: CHeTGeometry, xp, seed: int = 1,
     all_t = xp.concatenate([sig_t, noi_t], axis=1)
     all_tr = xp.concatenate([sig_tr, xp.full((E, K), -1, dtype=xp.int32)], axis=1)
     all_ok = xp.concatenate([sig_ok, noi_ok], axis=1)
-    raw, valid, _ = compact(xp, all_ok, dict(ch=all_ch, t=all_t, truth=all_tr))
+    all_hid = xp.concatenate([sig_hid, xp.full((E, K), -1, dtype=xp.int32)], axis=1)
+    raw, valid, _ = compact(xp, all_ok, dict(ch=all_ch, t=all_t, truth=all_tr, hid=all_hid))
     raw["valid"] = valid
+    raw = apply_dead_time(xp, raw, cfg.channel_dead_time_ns)
 
     theta = xp.arctan2(pt, pz)
     truth = dict(valid=trk_valid, p=p, pt=pt, pz=pz, theta=theta, phi=phi_p,

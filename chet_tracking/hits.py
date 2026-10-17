@@ -9,6 +9,24 @@ from .geometry import CHeTGeometry
 TWO_PI = 2 * np.pi
 
 
+def apply_dead_time(xp, raw: dict, dead_ns: float):
+    """Merge repeated hits of the same SiPM channel closer than ``dead_ns``
+    (keeps the earliest), as the FERS/ToT readout would.  Works on [E, H]."""
+    if dead_ns <= 0:
+        return raw
+    ch, t, ok = raw["ch"], raw["t"], raw["valid"]
+    t_span = 1e5
+    key = xp.where(ok, ch.astype(xp.float64) * t_span + xp.clip(t, -1e3, t_span - 1e3 - 1) + 1e3, xp.inf)
+    order = xp.argsort(key, axis=1)
+    s = {k: xp.take_along_axis(v, order, 1) for k, v in raw.items()}
+    same = (s["ch"][:, 1:] == s["ch"][:, :-1]) & ((s["t"][:, 1:] - s["t"][:, :-1]) < dead_ns)
+    keep = s["valid"].copy()
+    keep[:, 1:] &= ~(same & s["valid"][:, :-1])
+    out, valid, _ = compact(xp, keep, {k: v for k, v in s.items() if k != "valid"})
+    out["valid"] = valid
+    return out
+
+
 def build_crossings(xp, raw: dict, geom: CHeTGeometry, gd: dict, dt_ns: float = 2.0):
     """All u x v channel pairs on the same cylinder within ``dt_ns``.
 
@@ -17,7 +35,8 @@ def build_crossings(xp, raw: dict, geom: CHeTGeometry, gd: dict, dt_ns: float = 
     for every 2*pi branch k with |z| inside the detector.  Ghost combinations
     are kept here and removed later by the track finder.
 
-    Returns points dict (x, y, z, t, cyl, truth, ch_u, ch_v) of [E, P] arrays
+    Returns points dict (x, y, z, t, cyl, truth, ghost, hu, hv) of [E, P] arrays
+    (hu/hv = indices of the u/v raw hits)
     and a valid mask.
     """
     ch, t, tr, ok = raw["ch"], raw["t"], raw["truth"], raw["valid"]
@@ -45,10 +64,15 @@ def build_crossings(xp, raw: dict, geom: CHeTGeometry, gd: dict, dt_ns: float = 
     x, y = rr * xp.cos(phi), rr * xp.sin(phi)
     t_prop = (geom.readout_z_mm - z) / (gd["cyl_cos"][c][..., None] * geom.v_fiber)
     tc = (0.5 * (t[a] + t[b]))[..., None] - t_prop
-    truth = xp.where(tr[a] == tr[b], tr[a], -1)[..., None]
-    ch_u = xp.broadcast_to(ch[a], pair.shape)[..., None]
-    ch_v = xp.broadcast_to(ch[b], pair.shape)[..., None]
+    # truth: track slot if u and v come from the same positron, else -1.
+    # ghost: u and v from different crossings (MC diagnostics only)
+    truth = xp.where(tr[a] == tr[b], tr[a], -1).astype(xp.int32)[..., None]
+    hid = raw.get("hid")
+    ghost = (xp.zeros(pair.shape, dtype=bool) if hid is None else (hid[a] != hid[b]))[..., None]
+    H = ch.shape[1]
+    hu = xp.broadcast_to(xp.arange(H)[None, :, None], pair.shape)[..., None]
+    hv = xp.broadcast_to(xp.arange(H)[None, None, :], pair.shape)[..., None]
 
     pts, valid, _ = compact(xp, sel, dict(x=x, y=y, z=z, t=tc, cyl=c[..., None],
-                                          truth=truth, ch_u=ch_u, ch_v=ch_v))
+                                          truth=truth, ghost=ghost, hu=hu, hv=hv))
     return pts, valid
