@@ -123,6 +123,21 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
 #hist { width: 100%; height: 70px; display: block; margin-top: 10px; }
 .cap { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-top: 4px; }
 
+/* orientation widget: floats above the pipeline panel */
+.orient { left: 50%; transform: translateX(-50%); bottom: 196px; display: flex; gap: 12px; align-items: center; padding: 8px 12px; }
+#gizmo { width: 72px; height: 72px; display: block; flex: none; }
+.rpad { display: grid; gap: 3px; }
+.rrow { display: flex; align-items: center; gap: 4px; }
+.rrow .ax { font-family: var(--hud); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; width: 40px; }
+.rrow kbd { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-left: 4px; }
+.rb { width: 26px; height: 22px; font-size: 11px; line-height: 1; color: var(--ink); background: rgba(34, 81, 255, 0.10); border: 1px solid var(--edge-hi);
+  cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.rb:hover { background: rgba(34, 81, 255, 0.3); }
+.rb.down { background: var(--accent); border-color: var(--accent); }
+.rb:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.orient .reset { align-self: center; padding: 6px 10px; }
+@media (min-width: 1100px) and (max-height: 820px) { .orient { bottom: 186px; } }
+
 /* bottom: minimaps and pipeline */
 .mini { bottom: 18px; width: clamp(220px, 32vh, 300px); }
 .mini canvas { width: 100%; display: block; }
@@ -176,7 +191,8 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   .legend { max-width: 92%; top: 10px; }
 }
 @media (min-width: 1100px) { .stagebox { position: absolute; inset: 0; } }
-@media (min-width: 1100px) and (max-height: 820px) { #hist, .cap { display: none; } .mini { width: clamp(200px, 28vh, 260px); } }
+@media (min-width: 1100px) and (max-height: 960px) { #hist, .cap { display: none; } }
+@media (min-width: 1100px) and (max-height: 820px) { .mini { width: clamp(200px, 28vh, 260px); } }
 @media (prefers-reduced-motion: reduce) { .badge.live i { animation: none; } .btn { transition: none; } }
 </style>
 
@@ -273,6 +289,23 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
       <canvas id="zu" aria-label="z versus unwrapped turning angle"></canvas>
     </div>
 
+    <div class="panel orient" id="orient">
+      <canvas id="gizmo" width="72" height="72" aria-label="Detector axes as seen by the camera"></canvas>
+      <div class="rpad">
+        <div class="ptitle" style="margin:0"><b>Rotate</b><span class="tag">hold · drag · keys</span></div>
+        <div class="rrow"><span class="ax" style="color:var(--amber)">pitch</span>
+          <button class="rb" type="button" data-rot="pitch" data-dir="-1" aria-label="Pitch up">▲</button>
+          <button class="rb" type="button" data-rot="pitch" data-dir="1" aria-label="Pitch down">▼</button><kbd>↑ ↓</kbd></div>
+        <div class="rrow"><span class="ax" style="color:var(--cyan)">yaw</span>
+          <button class="rb" type="button" data-rot="yaw" data-dir="-1" aria-label="Yaw left">◀</button>
+          <button class="rb" type="button" data-rot="yaw" data-dir="1" aria-label="Yaw right">▶</button><kbd>← →</kbd></div>
+        <div class="rrow"><span class="ax" style="color:var(--accent-hi)">roll</span>
+          <button class="rb" type="button" data-rot="roll" data-dir="-1" aria-label="Roll anticlockwise">↺</button>
+          <button class="rb" type="button" data-rot="roll" data-dir="1" aria-label="Roll clockwise">↻</button><kbd>Q E</kbd></div>
+      </div>
+      <button class="btn reset" id="resetView" type="button" title="Reset view">Reset<kbd>R</kbd></button>
+    </div>
+
     <div class="panel pipe">
       <div class="ptitle"><b>Reconstruction pipeline</b><span class="tag" id="pipeTag">–</span></div>
       <div class="steps">
@@ -295,7 +328,6 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
@@ -682,7 +714,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   }
 
   function init3D() {
-    if (!window.THREE || !THREE.OrbitControls) { const e = $("err"); e.hidden = false; e.textContent = "The 3D stage needs three.js from the CDN, which did not load. The panels still update."; return false; }
+    if (!window.THREE || !THREE.EffectComposer) { const e = $("err"); e.hidden = false; e.textContent = "The 3D stage needs three.js from the CDN, which did not load. The panels still update."; return false; }
     const canvas = $("stage");
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -690,9 +722,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x030e17, 0.006);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 800);
-    const controls = new THREE.OrbitControls(camera, canvas);
-    Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, autoRotate: !reduce, autoRotateSpeed: 0.45, minDistance: 25, maxDistance: 220, enablePan: false });
-    controls.target.set(0, 0, 0);
+    const controls = makeFreeControls(camera, canvas);
     camera.position.set(52, 50, 60);
 
     // detector: stereo fibres per layer (every 4th fibre), end rings, solenoid shell, floor
@@ -747,11 +777,12 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
       glowW: glowTex("rgba(255,255,255,1)", "rgba(110,139,255,0.9)"), glowA: glowTex("rgba(255,250,235,1)", "rgba(255,181,71,0.9)"),
       glowC: glowTex("rgba(255,255,255,1)", "rgba(0,169,244,0.9)"), ringT: ringTex(), camGoal: null, ok: true });
     scene.add(S.dyn);
+    window.__chetView = { camera, controls };   // read-only hook for automated tests
     // labels for the cylinders
     S.labels = [{ el: mkLabel("CHeT · r 20 / 23 / 36 / 45 mm · ±10° stereo · 400 mm"), pos: V3(0, 0, g.L + 30) },
       { el: mkLabel("μ⁺ orbit r 30 mm", "vtx"), pos: V3(g.r0 * Math.cos(0.8), g.r0 * Math.sin(0.8), -14) }];
     S.trkLabel = mkLabel("", "trk"); S.vtxLabel = mkLabel("decay vertex", "vtx");
-    controls.addEventListener("start", () => { $("spin").checked = false; controls.autoRotate = false; S.camGoal = null; setCamBtn(null); });
+    controls.onStart = () => { $("spin").checked = false; S.camGoal = null; setCamBtn(null); };
     return true;
   }
   function mkLabel(text, cls = "") { const d = document.createElement("div"); d.className = "lbl " + cls; d.textContent = text; $("labels").appendChild(d); return d; }
@@ -865,20 +896,135 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     });
   }
 
+  // free rotation about all three screen axes: yaw (drag ←→), pitch (drag ↑↓, no pole stop),
+  // roll (right-drag / Shift-drag / two-finger twist / Q E); wheel or pinch zooms
+  function makeFreeControls(camera, el) {
+    const C = { target: new THREE.Vector3(), vel: { yaw: 0, pitch: 0, roll: 0 }, hold: { yaw: 0, pitch: 0, roll: 0 },
+      minD: 22, maxD: 240, onStart: null };
+    const tmp = new THREE.Vector3(), q = new THREE.Quaternion();
+    function axes() {
+      camera.updateMatrixWorld();
+      const m = camera.matrixWorld.elements;
+      return { right: new THREE.Vector3(m[0], m[1], m[2]).normalize(), up: new THREE.Vector3(m[4], m[5], m[6]).normalize(),
+        fwd: new THREE.Vector3(-m[8], -m[9], -m[10]).normalize() };
+    }
+    function turn(axis, ang) {
+      if (!ang) return;
+      q.setFromAxisAngle(axis, ang);
+      tmp.copy(camera.position).sub(C.target).applyQuaternion(q);
+      camera.position.copy(C.target).add(tmp);
+      camera.up.applyQuaternion(q);
+    }
+    C.rotate = (yaw, pitch, roll) => {             // radians, about the current screen axes
+      const a = axes();
+      turn(a.up, -yaw); turn(a.right, -pitch); turn(a.fwd, roll);
+      // keep 'up' orthogonal to the view direction
+      const f = tmp.copy(C.target).sub(camera.position).normalize();
+      camera.up.addScaledVector(f, -camera.up.dot(f)).normalize();
+      camera.lookAt(C.target);
+    };
+    C.spinWorld = (ang) => { turn(new THREE.Vector3(0, 1, 0), ang); camera.lookAt(C.target); };   // about the solenoid axis
+    C.zoom = (k) => {
+      tmp.copy(camera.position).sub(C.target);
+      const d = Math.max(C.minD, Math.min(C.maxD, tmp.length() * k));
+      camera.position.copy(C.target).add(tmp.setLength(d));
+    };
+    C.update = (dt) => {
+      const r = C.hold, v = C.vel, s = 1.6 * dt;     // held keys/buttons: 1.6 rad/s
+      if (r.yaw || r.pitch || r.roll) C.rotate(r.yaw * s, r.pitch * s, r.roll * s);
+      if (!drag && (Math.abs(v.yaw) + Math.abs(v.pitch) + Math.abs(v.roll) > 1e-5)) {
+        C.rotate(v.yaw, v.pitch, v.roll);
+        const k = Math.pow(0.9, dt * 60); v.yaw *= k; v.pitch *= k; v.roll *= k;
+      }
+      camera.lookAt(C.target);
+    };
+    // ---- pointer input
+    const pts = new Map();
+    let drag = null;
+    const centre = () => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+    const angAt = (x, y) => { const [cx, cy] = centre(); return Math.atan2(y - cy, x - cx); };
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
+    el.addEventListener("pointerdown", (e) => {
+      el.setPointerCapture(e.pointerId);
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      C.vel.yaw = C.vel.pitch = C.vel.roll = 0;
+      const rollMode = e.button === 2 || e.shiftKey;
+      drag = { mode: rollMode ? "roll" : "orbit", x: e.clientX, y: e.clientY, a: angAt(e.clientX, e.clientY) };
+      if (pts.size === 2) {
+        const [p1, p2] = [...pts.values()];
+        drag = { mode: "touch2", d: Math.hypot(p2.x - p1.x, p2.y - p1.y), a: Math.atan2(p2.y - p1.y, p2.x - p1.x) };
+      }
+      C.onStart && C.onStart();
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!drag || !pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const k = 2 * Math.PI / Math.max(400, el.clientHeight);     // one canvas height ≈ one full turn
+      if (drag.mode === "orbit") {
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        C.vel.yaw = dx * k; C.vel.pitch = dy * k; C.vel.roll = 0;
+        C.rotate(C.vel.yaw, C.vel.pitch, 0);
+        drag.x = e.clientX; drag.y = e.clientY;
+      } else if (drag.mode === "roll") {
+        const a = angAt(e.clientX, e.clientY);
+        let da = a - drag.a; da = Math.atan2(Math.sin(da), Math.cos(da));
+        C.vel.roll = -da; C.vel.yaw = C.vel.pitch = 0;
+        C.rotate(0, 0, -da); drag.a = a;
+      } else if (drag.mode === "touch2" && pts.size === 2) {
+        const [p1, p2] = [...pts.values()];
+        const d = Math.hypot(p2.x - p1.x, p2.y - p1.y), a = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        let da = a - drag.a; da = Math.atan2(Math.sin(da), Math.cos(da));
+        C.zoom(drag.d / Math.max(d, 1)); C.rotate(0, 0, -da);
+        drag.d = d; drag.a = a;
+      }
+    });
+    const end = (e) => {
+      pts.delete(e.pointerId);
+      if (pts.size === 1) { const [p] = [...pts.values()]; drag = { mode: "orbit", x: p.x, y: p.y, a: 0 }; C.vel.yaw = C.vel.pitch = C.vel.roll = 0; }
+      else if (pts.size === 0) drag = null;
+    };
+    el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+    el.addEventListener("wheel", (e) => { e.preventDefault(); C.zoom(Math.exp(e.deltaY * 0.0012)); C.onStart && C.onStart(); }, { passive: false });
+    return C;
+  }
+
   // camera presets
-  const CAMS = { iso: [52, 50, 60], beam: [0.01, 118, 0.01], side: [0, 6, 100], track: null };
+  const CAMS = { iso: [[52, 50, 60], [0, 1, 0]], beam: [[0, 118, 0], [0, 0, -1]], side: [[0, 6, 100], [0, 1, 0]], track: null };
   function setCamBtn(k) { document.querySelectorAll("[data-cam]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.cam === k))); }
   function goCam(k) {
     if (!S.ok) return;
-    let pos = CAMS[k];
+    let pos = CAMS[k] && CAMS[k][0];
+    const up = new THREE.Vector3(...(CAMS[k] ? CAMS[k][1] : [0, 1, 0]));
     if (k === "track") {
       const F = S.E && S.E.fits[0];
       if (!F) return;
       const m = F.mid, dir = new THREE.Vector3(m.x, 0, m.z).normalize();
       pos = [m.x + dir.x * 42, m.y + 16, m.z + dir.z * 42];
-      S.camGoal = { pos: new THREE.Vector3(...pos), tgt: m.clone() };
-    } else S.camGoal = { pos: new THREE.Vector3(...pos), tgt: new THREE.Vector3(0, 0, 0) };
-    S.controls.autoRotate = false; $("spin").checked = false; setCamBtn(k);
+      S.camGoal = { pos: new THREE.Vector3(...pos), tgt: m.clone(), up };
+    } else S.camGoal = { pos: new THREE.Vector3(...pos), tgt: new THREE.Vector3(0, 0, 0), up };
+    S.controls.vel.yaw = S.controls.vel.pitch = S.controls.vel.roll = 0;
+    $("spin").checked = false; setCamBtn(k);
+  }
+
+  // axis gizmo: detector x, y and z (solenoid / B axis) seen from the current camera
+  const GZ = [["x", [1, 0, 0], css("--amber")], ["y", [0, 0, -1], css("--cyan")], ["z·B", [0, 1, 0], css("--accent-hi")]];
+  function drawGizmo() {
+    const c = $("gizmo"); if (!c || !c.offsetParent) return;
+    const d = window.devicePixelRatio || 1;
+    if (c.width !== 72 * d) { c.width = 72 * d; c.height = 72 * d; }
+    const x = c.getContext("2d"); x.setTransform(d, 0, 0, d, 0, 0); x.clearRect(0, 0, 72, 72);
+    x.strokeStyle = COL.edge; x.lineWidth = 1; x.beginPath(); x.arc(36, 36, 33, 0, TWO_PI); x.stroke();
+    const inv = new THREE.Matrix4().extractRotation(S.camera.matrixWorldInverse);
+    const ax = GZ.map(([lab, v, col]) => { const p = new THREE.Vector3(...v).applyMatrix4(inv); return { lab, col, p }; }).sort((a, b) => a.p.z - b.p.z);
+    x.font = "600 10px " + css("--mono"); x.textAlign = "center"; x.textBaseline = "middle";
+    ax.forEach(({ lab, col, p }) => {
+      const ex = 36 + p.x * 24, ey = 36 - p.y * 24, back = p.z < 0;
+      x.globalAlpha = back ? 0.45 : 1; x.strokeStyle = col; x.lineWidth = 2;
+      x.beginPath(); x.moveTo(36, 36); x.lineTo(ex, ey); x.stroke();
+      x.fillStyle = col; x.beginPath(); x.arc(ex, ey, 3, 0, TWO_PI); x.fill();
+      x.fillText(lab, 36 + p.x * 31 + (lab.length > 1 ? 0 : 0), 36 - p.y * 31);
+    });
+    x.globalAlpha = 1;
   }
 
   function project(el, v, show = true) {
@@ -901,12 +1047,17 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     if (c.width !== Math.round(w * pr) || c.height !== Math.round(h * pr)) {
       S.renderer.setSize(w, h, false); S.composer.setSize(w, h); S.camera.aspect = w / h; S.camera.updateProjectionMatrix();
     }
+    const dt = Math.min(0.1, (now - (S.lastT || now)) / 1000); S.lastT = now;
     if (S.camGoal) {
-      S.camera.position.lerp(S.camGoal.pos, 0.06); S.controls.target.lerp(S.camGoal.tgt, 0.06);
-      if (S.camera.position.distanceTo(S.camGoal.pos) < 0.2) S.camGoal = null;
-    }
-    S.controls.autoRotate = $("spin").checked && !reduce;
-    S.controls.update();
+      const al = 1 - Math.exp(-dt * 5);          // time-based easing, same speed at any frame rate
+      S.camera.position.lerp(S.camGoal.pos, al); S.controls.target.lerp(S.camGoal.tgt, al);
+      S.camera.up.lerp(S.camGoal.up, Math.min(1, al * 1.6)).normalize();
+      if (S.camera.position.distanceTo(S.camGoal.pos) < 0.3 && S.camera.up.distanceTo(S.camGoal.up) < 0.02) {
+        S.camera.position.copy(S.camGoal.pos); S.camera.up.copy(S.camGoal.up); S.camGoal = null;
+      }
+    } else if ($("spin").checked && !reduce) S.controls.spinWorld(0.08 * dt);
+    S.controls.update(dt);
+    drawGizmo();
     // stored muons circulate (display-slowed cyclotron motion, clockwise from +z)
     const om = reduce ? 0 : now / 1000 * 1.1;
     for (let i = 0; i < S.muPh.length; i++) {
@@ -1270,6 +1421,29 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   $("renderBtn").addEventListener("click", () => showRender(ov.hidden));
   ov.addEventListener("click", () => showRender(false));
   $("closeRender").addEventListener("click", (e) => { e.stopPropagation(); showRender(false); });
+  // hold-to-rotate buttons and keys
+  const heldKeys = new Set();
+  function setHold() {
+    if (!S.ok) return;
+    const h = { yaw: 0, pitch: 0, roll: 0 };
+    document.querySelectorAll(".rb.down").forEach((b) => (h[b.dataset.rot] += +b.dataset.dir));
+    if (heldKeys.has("arrowleft")) h.yaw -= 1; if (heldKeys.has("arrowright")) h.yaw += 1;
+    if (heldKeys.has("arrowup")) h.pitch -= 1; if (heldKeys.has("arrowdown")) h.pitch += 1;
+    if (heldKeys.has("q")) h.roll -= 1; if (heldKeys.has("e")) h.roll += 1;
+    Object.assign(S.controls.hold, h);
+    if (h.yaw || h.pitch || h.roll) { $("spin").checked = false; S.camGoal = null; setCamBtn(null); }
+  }
+  document.querySelectorAll(".rb").forEach((b) => {
+    const up = () => { b.classList.remove("down"); setHold(); };
+    b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add("down"); setHold(); SFX.ui(); });
+    b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up); b.addEventListener("lostpointercapture", up);
+    b.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); S.ok && S.controls.rotate(
+      b.dataset.rot === "yaw" ? 0.26 * b.dataset.dir : 0, b.dataset.rot === "pitch" ? 0.26 * b.dataset.dir : 0, b.dataset.rot === "roll" ? 0.26 * b.dataset.dir : 0); } });
+  });
+  $("resetView").addEventListener("click", () => goCam("iso"));
+  window.addEventListener("keyup", (e) => { if (heldKeys.delete(e.key.toLowerCase())) setHold(); });
+  window.addEventListener("blur", () => { heldKeys.clear(); document.querySelectorAll(".rb.down").forEach((b) => b.classList.remove("down")); setHold(); });
+
   async function setSound(v) {
     const on = await SFX.toggle(v);
     const b = $("sound"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
@@ -1290,6 +1464,8 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     else if (k === "g") { $("ghosts").checked = !$("ghosts").checked; lastPhase = -1; }
     else if (k === "p") $("pile").checked = !$("pile").checked;
     else if (k === "m") setSound();
+    else if (["arrowleft", "arrowright", "arrowup", "arrowdown", "q", "e"].includes(k)) { e.preventDefault(); if (!heldKeys.has(k)) { heldKeys.add(k); setHold(); } }
+    else if (k === "r") goCam("iso");
     else if (k === "b") showRender(ov.hidden);
     else if (k === "escape") showRender(false);
     else if ("1234".includes(k)) goCam(["iso", "beam", "side", "track"][+k - 1]);
