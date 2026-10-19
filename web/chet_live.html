@@ -123,21 +123,6 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
 #hist { width: 100%; height: 70px; display: block; margin-top: 10px; }
 .cap { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-top: 4px; }
 
-/* orientation widget: floats above the pipeline panel */
-.orient { left: 50%; transform: translateX(-50%); bottom: 196px; display: flex; gap: 12px; align-items: center; padding: 8px 12px; }
-#gizmo { width: 72px; height: 72px; display: block; flex: none; }
-.rpad { display: grid; gap: 3px; }
-.rrow { display: flex; align-items: center; gap: 4px; }
-.rrow .ax { font-family: var(--hud); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; width: 40px; }
-.rrow kbd { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-left: 4px; }
-.rb { width: 26px; height: 22px; font-size: 11px; line-height: 1; color: var(--ink); background: rgba(34, 81, 255, 0.10); border: 1px solid var(--edge-hi);
-  cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
-.rb:hover { background: rgba(34, 81, 255, 0.3); }
-.rb.down { background: var(--accent); border-color: var(--accent); }
-.rb:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
-.orient .reset { align-self: center; padding: 6px 10px; }
-@media (min-width: 1100px) and (max-height: 820px) { .orient { bottom: 186px; } }
-
 /* bottom: minimaps and pipeline */
 .mini { bottom: 18px; width: clamp(220px, 32vh, 300px); }
 .mini canvas { width: 100%; display: block; }
@@ -191,8 +176,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   .legend { max-width: 92%; top: 10px; }
 }
 @media (min-width: 1100px) { .stagebox { position: absolute; inset: 0; } }
-@media (min-width: 1100px) and (max-height: 960px) { #hist, .cap { display: none; } }
-@media (min-width: 1100px) and (max-height: 820px) { .mini { width: clamp(200px, 28vh, 260px); } }
+@media (min-width: 1100px) and (max-height: 820px) { #hist, .cap { display: none; } .mini { width: clamp(200px, 28vh, 260px); } }
 @media (prefers-reduced-motion: reduce) { .badge.live i { animation: none; } .btn { transition: none; } }
 </style>
 
@@ -287,23 +271,6 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     <div class="panel mini r">
       <div class="ptitle"><b>Longitudinal</b><span class="tag">z vs turning angle</span></div>
       <canvas id="zu" aria-label="z versus unwrapped turning angle"></canvas>
-    </div>
-
-    <div class="panel orient" id="orient">
-      <canvas id="gizmo" width="72" height="72" aria-label="Detector axes as seen by the camera"></canvas>
-      <div class="rpad">
-        <div class="ptitle" style="margin:0"><b>Rotate</b><span class="tag">hold · drag · keys</span></div>
-        <div class="rrow"><span class="ax" style="color:var(--amber)">pitch</span>
-          <button class="rb" type="button" data-rot="pitch" data-dir="-1" aria-label="Pitch up">▲</button>
-          <button class="rb" type="button" data-rot="pitch" data-dir="1" aria-label="Pitch down">▼</button><kbd>↑ ↓</kbd></div>
-        <div class="rrow"><span class="ax" style="color:var(--cyan)">yaw</span>
-          <button class="rb" type="button" data-rot="yaw" data-dir="-1" aria-label="Yaw left">◀</button>
-          <button class="rb" type="button" data-rot="yaw" data-dir="1" aria-label="Yaw right">▶</button><kbd>← →</kbd></div>
-        <div class="rrow"><span class="ax" style="color:var(--accent-hi)">roll</span>
-          <button class="rb" type="button" data-rot="roll" data-dir="-1" aria-label="Roll anticlockwise">↺</button>
-          <button class="rb" type="button" data-rot="roll" data-dir="1" aria-label="Roll clockwise">↻</button><kbd>Q E</kbd></div>
-      </div>
-      <button class="btn reset" id="resetView" type="button" title="Reset view">Reset<kbd>R</kbd></button>
     </div>
 
     <div class="panel pipe">
@@ -1006,27 +973,6 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     $("spin").checked = false; setCamBtn(k);
   }
 
-  // axis gizmo: detector x, y and z (solenoid / B axis) seen from the current camera
-  const GZ = [["x", [1, 0, 0], css("--amber")], ["y", [0, 0, -1], css("--cyan")], ["z·B", [0, 1, 0], css("--accent-hi")]];
-  function drawGizmo() {
-    const c = $("gizmo"); if (!c || !c.offsetParent) return;
-    const d = window.devicePixelRatio || 1;
-    if (c.width !== 72 * d) { c.width = 72 * d; c.height = 72 * d; }
-    const x = c.getContext("2d"); x.setTransform(d, 0, 0, d, 0, 0); x.clearRect(0, 0, 72, 72);
-    x.strokeStyle = COL.edge; x.lineWidth = 1; x.beginPath(); x.arc(36, 36, 33, 0, TWO_PI); x.stroke();
-    const inv = new THREE.Matrix4().extractRotation(S.camera.matrixWorldInverse);
-    const ax = GZ.map(([lab, v, col]) => { const p = new THREE.Vector3(...v).applyMatrix4(inv); return { lab, col, p }; }).sort((a, b) => a.p.z - b.p.z);
-    x.font = "600 10px " + css("--mono"); x.textAlign = "center"; x.textBaseline = "middle";
-    ax.forEach(({ lab, col, p }) => {
-      const ex = 36 + p.x * 24, ey = 36 - p.y * 24, back = p.z < 0;
-      x.globalAlpha = back ? 0.45 : 1; x.strokeStyle = col; x.lineWidth = 2;
-      x.beginPath(); x.moveTo(36, 36); x.lineTo(ex, ey); x.stroke();
-      x.fillStyle = col; x.beginPath(); x.arc(ex, ey, 3, 0, TWO_PI); x.fill();
-      x.fillText(lab, 36 + p.x * 31 + (lab.length > 1 ? 0 : 0), 36 - p.y * 31);
-    });
-    x.globalAlpha = 1;
-  }
-
   function project(el, v, show = true) {
     if (!show) { el.style.display = "none"; return; }
     const p = v.clone().project(S.camera), c = S.renderer.domElement;
@@ -1057,7 +1003,6 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
       }
     } else if ($("spin").checked && !reduce) S.controls.spinWorld(0.08 * dt);
     S.controls.update(dt);
-    drawGizmo();
     // stored muons circulate (display-slowed cyclotron motion, clockwise from +z)
     const om = reduce ? 0 : now / 1000 * 1.1;
     for (let i = 0; i < S.muPh.length; i++) {
@@ -1426,23 +1371,14 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   function setHold() {
     if (!S.ok) return;
     const h = { yaw: 0, pitch: 0, roll: 0 };
-    document.querySelectorAll(".rb.down").forEach((b) => (h[b.dataset.rot] += +b.dataset.dir));
     if (heldKeys.has("arrowleft")) h.yaw -= 1; if (heldKeys.has("arrowright")) h.yaw += 1;
     if (heldKeys.has("arrowup")) h.pitch -= 1; if (heldKeys.has("arrowdown")) h.pitch += 1;
     if (heldKeys.has("q")) h.roll -= 1; if (heldKeys.has("e")) h.roll += 1;
     Object.assign(S.controls.hold, h);
     if (h.yaw || h.pitch || h.roll) { $("spin").checked = false; S.camGoal = null; setCamBtn(null); }
   }
-  document.querySelectorAll(".rb").forEach((b) => {
-    const up = () => { b.classList.remove("down"); setHold(); };
-    b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add("down"); setHold(); SFX.ui(); });
-    b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up); b.addEventListener("lostpointercapture", up);
-    b.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); S.ok && S.controls.rotate(
-      b.dataset.rot === "yaw" ? 0.26 * b.dataset.dir : 0, b.dataset.rot === "pitch" ? 0.26 * b.dataset.dir : 0, b.dataset.rot === "roll" ? 0.26 * b.dataset.dir : 0); } });
-  });
-  $("resetView").addEventListener("click", () => goCam("iso"));
   window.addEventListener("keyup", (e) => { if (heldKeys.delete(e.key.toLowerCase())) setHold(); });
-  window.addEventListener("blur", () => { heldKeys.clear(); document.querySelectorAll(".rb.down").forEach((b) => b.classList.remove("down")); setHold(); });
+  window.addEventListener("blur", () => { heldKeys.clear(); setHold(); });
 
   async function setSound(v) {
     const on = await SFX.toggle(v);
@@ -1470,11 +1406,20 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     else if (k === "escape") showRender(false);
     else if ("1234".includes(k)) goCam(["iso", "beam", "side", "track"][+k - 1]);
   });
-  window.addEventListener("resize", () => { lastPhase = -1; drawHist(); });
+  // show the Δp/p histogram only where it fits above the Longitudinal panel
+  function fitHist() {
+    const h = $("hist"), cap = h.nextElementSibling;
+    h.style.display = cap.style.display = "";
+    if (matchMedia("(max-width: 1099px)").matches) return;
+    const perf = h.closest(".panel").getBoundingClientRect(), zu = $("zu").closest(".panel").getBoundingClientRect();
+    if (perf.bottom > zu.top - 8) h.style.display = cap.style.display = "none";
+  }
+  window.addEventListener("resize", () => { lastPhase = -1; fitHist(); drawHist(); });
 
   // warm start so the panels open filled in
   S.ok = init3D() || false;
   for (let i = 0; i < 40; i++) { ev = simulate(g, R, { mult: 1 }); rec = reconstruct(g, ev.raw); nEvt++; updateStats(); pushLog(); }
+  fitHist();
   nextEvent(performance.now());
   requestAnimationFrame(frame);
 })();
