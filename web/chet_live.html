@@ -92,10 +92,10 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
 .vol input[type=range]:disabled { opacity: 0.35; }
 .btn .eq { display: inline-flex; gap: 2px; align-items: flex-end; height: 10px; margin-right: 6px; vertical-align: -1px; }
 .btn .eq i { width: 2px; height: 3px; background: currentColor; }
-.btn.on .eq i { animation: eq 0.9s ease-in-out infinite; }
-.btn.on .eq i:nth-child(2) { animation-delay: -0.3s; } .btn.on .eq i:nth-child(3) { animation-delay: -0.6s; }
+.btn.live .eq i { animation: eq 0.9s ease-in-out infinite; }
+.btn.live .eq i:nth-child(2) { animation-delay: -0.3s; } .btn.live .eq i:nth-child(3) { animation-delay: -0.6s; }
 @keyframes eq { 0%, 100% { height: 3px; } 50% { height: 10px; } }
-@media (prefers-reduced-motion: reduce) { .btn.on .eq i { animation: none; height: 7px; } }
+@media (prefers-reduced-motion: reduce) { .btn.live .eq i { animation: none; height: 7px; } }
 
 /* left: track readout */
 .track { left: max(18px, env(safe-area-inset-left, 0px)); top: 250px; width: 290px; }
@@ -235,8 +235,8 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
       </div>
 
       <div class="row"><span class="lab">Sound</span>
-        <button class="btn" id="sound" type="button" aria-pressed="false"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span><span id="soundTxt">Off</span><kbd>M</kbd></button>
-        <label class="vol"><input type="range" id="vol" min="0" max="100" value="60" aria-label="Sound volume" disabled></label>
+        <button class="btn on" id="sound" type="button" aria-pressed="true" title="Sound starts with your first click or key press"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span><span id="soundTxt">On</span><kbd>M</kbd></button>
+        <label class="vol"><input type="range" id="vol" min="0" max="100" value="60" aria-label="Sound volume"></label>
         <label class="chk" title="Show the muEDM apparatus around the CHeT"><input type="checkbox" id="app" checked> setup<kbd>A</kbd></label>
       </div>
     </div>
@@ -299,6 +299,9 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegmentsGeometry.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineMaterial.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/lines/LineSegments2.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
@@ -664,7 +667,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   }
   function ringTex() {
     const c = document.createElement("canvas"); c.width = c.height = 128;
-    const x = c.getContext("2d"); x.strokeStyle = "#fff"; x.lineWidth = 6;
+    const x = c.getContext("2d"); x.strokeStyle = "#fff"; x.lineWidth = 9;
     x.beginPath(); x.arc(64, 64, 50, 0, TWO_PI); x.stroke();
     return new THREE.CanvasTexture(c);
   }
@@ -678,6 +681,33 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     }
     return pos;
   }
+  // Line width: WebGL draws THREE.Line at 1 device pixel regardless of linewidth, so every line is
+  // converted to a LineSegments2 drawn FAT.width device pixels wide (1.5 = 50 % wider than before).
+  const FAT = { width: 1.5, res: null };
+  function toFat(obj) {
+    const src = obj.geometry.attributes.position.array;
+    let arr = src;
+    if (!obj.isLineSegments) {
+      const n = src.length / 3; arr = new Float32Array(Math.max(0, n - 1) * 6);
+      for (let i = 0; i < n - 1; i++) arr.set(src.subarray(3 * i, 3 * i + 6), 6 * i);
+    }
+    const g2 = new THREE.LineSegmentsGeometry(); g2.setPositions(arr);
+    const m = obj.material;
+    const fm = new THREE.LineMaterial({ color: m.color.getHex(), linewidth: FAT.width, transparent: true, opacity: m.opacity, depthWrite: false });
+    fm.blending = m.blending; fm.fog = true;
+    if (!FAT.res) FAT.res = new THREE.Vector2(1, 1);
+    fm.uniforms.resolution.value = FAT.res;            // shared, updated on resize
+    const L2 = new THREE.LineSegments2(g2, fm);
+    L2.position.copy(obj.position); L2.rotation.copy(obj.rotation); L2.scale.copy(obj.scale);
+    L2.userData = obj.userData; L2.userData.srcMaterial = m;
+    obj.geometry.dispose();
+    return L2;
+  }
+  function fattenTree(root, map) {
+    const list = []; root.traverse((o) => { if (o.isLine) list.push(o); });
+    list.forEach((o) => { const f = toFat(o); if (map) map.set(o.material, f.material); o.material.dispose(); o.parent.add(f); o.parent.remove(o); });
+  }
+
   function lineGeo(pos) { const gg = new THREE.BufferGeometry(); gg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); return gg; }
   function ring(r, z, color, opacity) {
     const pts = []; for (let k = 0; k <= 160; k++) { const a = TWO_PI * k / 160; pts.push(V3(r * Math.cos(a), r * Math.sin(a), z)); }
@@ -703,7 +733,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
         const phis = []; for (let f = 0; f < c.nfib; f += 4) phis.push((f + 0.5) * c.dphi);
         const col = s ? 0x2c5296 : 0x3460a8;
         det.add(new THREE.LineSegments(lineGeo(fibrePositions(c, sgn, c.r + (s ? 0.6 : 0), phis)),
-          new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.16 + 0.04 * ci, depthWrite: false })));
+          new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: (0.16 + 0.04 * ci) * 0.7, depthWrite: false })   // ×0.7: same overall brightness at 1.5× width));
       });
       [-g.L, g.L].forEach((z) => det.add(ring(c.r + 0.3, z, 0x3e64a8, 0.6)));
     });
@@ -739,6 +769,10 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     scene.add(add(new THREE.Points(lineGeo(dust), new THREE.PointsMaterial({ color: 0x3a6ea8, size: 0.35, opacity: 0.35 }))));
 
     const app = buildApparatus(scene);
+    const matMap = new Map();
+    fattenTree(scene, matMap);
+    app.kick.mats = app.kick.mats.map((m) => matMap.get(m));
+    app.trig.mats = app.trig.mats.map((m) => matMap.get(m));
 
     // post-processing bloom
     const composer = new THREE.EffectComposer(renderer);
@@ -860,7 +894,8 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   function mkLabel(text, cls = "") { const d = document.createElement("div"); d.className = "lbl " + cls; d.textContent = text; $("labels").appendChild(d); return d; }
 
   function disposeDyn() {
-    S.dyn.children.slice().forEach((o) => { S.dyn.remove(o); o.geometry && o.geometry.dispose(); o.material && o.material.dispose(); });
+    S.dyn.children.slice().forEach((o) => { S.dyn.remove(o); o.geometry && o.geometry.dispose(); o.material && o.material.dispose();
+      o.userData && o.userData.srcMaterial && o.userData.srcMaterial.dispose(); });
   }
   function helixPath(xc, yc, Rr, h, psiV, zV, umax, step = 0.035) {
     const pts = [], us = [];
@@ -881,8 +916,8 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
       const umax = Math.max(...t.crossings.map((c) => c.D), 1) + 0.6;
       const { pts, us } = helixPath(t.cx, t.cy, t.R, t.h, t.psi0, t.vz, Math.min(umax, TWO_PI * 3.2));
       if (pts.length < 2) return;
-      const ln = add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: COL.cyan, opacity: 0.75 })));
-      ln.geometry.setDrawRange(0, 0); S.dyn.add(ln);
+      const ln = toFat(add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: COL.cyan, opacity: 0.75 }))));
+      ln.geometry.instanceCount = 0; S.dyn.add(ln);
       const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: S.glowC, color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
       head.scale.set(2.6, 2.6, 1); head.visible = false; S.dyn.add(head);
       const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: S.glowC, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
@@ -892,8 +927,8 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     // fired fibres (centre fibre of the SiPM's four), lit when the positron reaches them
     ev.raw.forEach((hh) => {
       const c = g.cyl[hh.cyl], sgn = hh.s ? -1 : 1;
-      const ln = add(new THREE.LineSegments(lineGeo(fibrePositions(c, sgn, c.r + (hh.s ? 0.6 : 0), [c.chPhi[hh.ch]], 36)),
-        new THREE.LineBasicMaterial({ color: hh.truth < 0 ? COL.amber : 0xdfeaff, opacity: 0 })));
+      const ln = toFat(add(new THREE.LineSegments(lineGeo(fibrePositions(c, sgn, c.r + (hh.s ? 0.6 : 0), [c.chPhi[hh.ch]], 36)),
+        new THREE.LineBasicMaterial({ color: hh.truth < 0 ? COL.amber : 0xdfeaff, opacity: 0 }))));
       S.dyn.add(ln);
       const fl = E.flight.find((f) => f.m === hh.truth);
       E.fibres.push({ ln, at: hh.truth >= 0 && fl ? Math.min(1, hh.D / fl.umax) : Math.random(), noise: hh.truth < 0 });
@@ -917,9 +952,9 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
       const psiV = Math.atan2(t.vy - t.yc, t.vx - t.xc);
       const { pts } = helixPath(t.xc, t.yc, t.R, t.h, psiV, t.vz, Math.max(Umax - t.Uv, 0.5) + 0.35, 0.03);
       if (pts.length < 2) return;
-      const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 2, 0.11, 8, false),
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 2, 0.165, 8, false),
         new THREE.MeshBasicMaterial({ color: 0x3d6bff }));
-      const core = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 2, 0.035, 6, false),
+      const core = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 2, 0.0525, 6, false),
         new THREE.MeshBasicMaterial({ color: 0xdfe6ff }));
       const nIdx = tube.geometry.index.count, nCore = core.geometry.index.count;
       tube.geometry.setDrawRange(0, 0); core.geometry.setDrawRange(0, 0);
@@ -936,7 +971,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     const fl = prog(TL.flight, f), pp = prog(TL.points, f), sp = prog(TL.seed, f), fp = prog(TL.fit, f);
     E.flight.forEach((F) => {
       const n = Math.max(1, Math.round(fl * (F.pts.length - 1)));
-      F.ln.geometry.setDrawRange(0, n + 1);
+      F.ln.geometry.instanceCount = Math.min(n, F.pts.length - 1);
       F.head.visible = fl > 0 && fl < 1; F.head.position.copy(F.pts[Math.min(n, F.pts.length - 1)]);
       const fs = fl < 0.12 ? 6 * fl / 0.12 : Math.max(0, 6 * (1 - (fl - 0.12) / 0.3));
       F.flash.scale.set(fs + 0.01, fs + 0.01, 1);
@@ -1097,6 +1132,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     const c = S.renderer.domElement, w = c.clientWidth, h = c.clientHeight, pr = S.renderer.getPixelRatio();
     if (c.width !== Math.round(w * pr) || c.height !== Math.round(h * pr)) {
       S.renderer.setSize(w, h, false); S.composer.setSize(w, h); S.camera.aspect = w / h; S.camera.updateProjectionMatrix();
+      FAT.res.set(c.width, c.height);
     }
     const dt = Math.min(0.1, (now - (S.lastT || now)) / 1000); S.lastT = now;
     if (S.camGoal) {
@@ -1140,6 +1176,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     function init() {
       if (ctx) return;
       ctx = new (window.AudioContext || window.webkitAudioContext)();
+      ctx.onstatechange = () => api._stateFn && api._stateFn(ctx.state);
       const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 4;
       master = ctx.createGain(); master.gain.value = 0;
       master.connect(comp); comp.connect(ctx.destination);
@@ -1203,10 +1240,12 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     const now = () => ctx.currentTime + 0.005;
     const api = {
       get on() { return enabled; },
+      state() { return ctx ? ctx.state : "none"; },
+      onState(fn) { api._stateFn = fn; if (ctx) ctx.onstatechange = () => fn(ctx.state); },
       async toggle(v) {
         init();
         enabled = v === undefined ? !enabled : v;
-        try { if (enabled && ctx.state !== "running") await ctx.resume(); } catch (e) { enabled = false; }
+        if (enabled && ctx.state !== "running") ctx.resume().catch(() => {});
         const t = ctx.currentTime;
         master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t);
         master.gain.linearRampToValueAtTime(enabled ? api.vol : 0, t + 0.25);
@@ -1311,12 +1350,12 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     const r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1;
     if (!r.width || !r.height) return null;
     c.width = Math.round(r.width * d); c.height = Math.round(r.height * d);
-    const ctx = c.getContext("2d"); ctx.setTransform(d, 0, 0, d, 0, 0); return { ctx, w: r.width, h: r.height };
+    const ctx = c.getContext("2d"); ctx.setTransform(d, 0, 0, d, 0, 0); ctx.lineWidth = 1.5; return { ctx, w: r.width, h: r.height };
   }
   function drawXY(fitShown) {
     const cv = setupCanvas($("xy")); if (!cv) return; const { ctx, w, h } = cv;
     const RV = 60, Sx = Math.min(w, h) / 2 / (RV + 3), cx0 = w / 2, cy0 = h / 2, X = (x) => cx0 + x * Sx, Y = (y) => cy0 - y * Sx;
-    ctx.strokeStyle = COL.edge; ctx.lineWidth = 1;
+    ctx.strokeStyle = COL.edge; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(cx0 - RV * Sx, cy0); ctx.lineTo(cx0 + RV * Sx, cy0); ctx.moveTo(cx0, cy0 - RV * Sx); ctx.lineTo(cx0, cy0 + RV * Sx); ctx.stroke();
     g.cyl.forEach((c) => { ctx.strokeStyle = "rgba(110,160,255,0.35)"; ctx.beginPath(); ctx.arc(cx0, cy0, c.r * Sx, 0, TWO_PI); ctx.stroke(); });
     if ($("app").checked) {
@@ -1336,8 +1375,8 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
         rec.pts.forEach((p) => { if (!on.has(p) && p.ghost && !$("ghosts").checked) return;
           ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), on.has(p) ? 2.6 : 1.8, 0, TWO_PI);
           if (on.has(p)) { ctx.fillStyle = COL.amber; ctx.fill(); } else { ctx.strokeStyle = COL.dim; ctx.stroke(); } });
-        rec.tracks.forEach((t) => { ctx.shadowColor = COL.acc; ctx.shadowBlur = 8; ctx.strokeStyle = COL.accHi; ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.arc(X(t.xc), Y(t.yc), t.R * Sx, 0, TWO_PI); ctx.stroke(); ctx.shadowBlur = 0; ctx.lineWidth = 1; });
+        rec.tracks.forEach((t) => { ctx.shadowColor = COL.acc; ctx.shadowBlur = 8; ctx.strokeStyle = COL.accHi; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(X(t.xc), Y(t.yc), t.R * Sx, 0, TWO_PI); ctx.stroke(); ctx.shadowBlur = 0; ctx.lineWidth = 1.5; });
       }
     }
     ctx.restore();
@@ -1350,7 +1389,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     let umax = TWO_PI * 2;
     if (trk) umax = Math.max(TWO_PI, Math.ceil((Math.max(...trk.U.filter((u, i) => trk.w[i])) - trk.Uv) / Math.PI) * Math.PI);
     const X = (u) => m.l + (u / umax) * W, Y = (z) => m.t + (1 - (z + 200) / 400) * H;
-    ctx.font = "9px " + css("--mono"); ctx.fillStyle = COL.dim; ctx.strokeStyle = COL.edge; ctx.lineWidth = 1;
+    ctx.font = "9px " + css("--mono"); ctx.fillStyle = COL.dim; ctx.strokeStyle = COL.edge; ctx.lineWidth = 1.5;
     [-200, 0, 200].forEach((z) => { ctx.beginPath(); ctx.moveTo(m.l, Y(z) + 0.5); ctx.lineTo(m.l + W, Y(z) + 0.5); ctx.stroke(); ctx.textAlign = "right"; ctx.fillText(z, m.l - 5, Y(z) + 3); });
     ctx.textAlign = "center";
     for (let k = 0; k <= umax / Math.PI + 1e-9; k++) ctx.fillText(k === 0 ? "0" : (k === 1 ? "π" : k + "π"), X(k * Math.PI), h - 6);
@@ -1359,8 +1398,8 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     const t = ev.tracks[trk.truth] || ev.tracks[0];
     ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, W, H); ctx.clip();
     ctx.setLineDash([4, 4]); ctx.strokeStyle = COL.cyan; ctx.beginPath(); ctx.moveTo(X(0), Y(t.vz)); ctx.lineTo(X(umax), Y(t.vz + t.h * umax)); ctx.stroke(); ctx.setLineDash([]);
-    ctx.shadowColor = COL.acc; ctx.shadowBlur = 8; ctx.strokeStyle = COL.accHi; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(X(0), Y(trk.vz)); ctx.lineTo(X(umax), Y(trk.vz + trk.h * umax)); ctx.stroke(); ctx.shadowBlur = 0; ctx.lineWidth = 1;
+    ctx.shadowColor = COL.acc; ctx.shadowBlur = 8; ctx.strokeStyle = COL.accHi; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(X(0), Y(trk.vz)); ctx.lineTo(X(umax), Y(trk.vz + trk.h * umax)); ctx.stroke(); ctx.shadowBlur = 0; ctx.lineWidth = 1.5;
     trk.all.forEach((p, i) => { const u = trk.U[i] - trk.Uv; ctx.beginPath(); ctx.arc(X(u), Y(p.z), 2.6, 0, TWO_PI);
       if (trk.w[i]) { ctx.fillStyle = COL.amber; ctx.fill(); } else { ctx.strokeStyle = COL.dim; ctx.stroke(); } });
     ctx.restore();
@@ -1501,13 +1540,20 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   window.addEventListener("keyup", (e) => { if (heldKeys.delete(e.key.toLowerCase())) setHold(); });
   window.addEventListener("blur", () => { heldKeys.clear(); setHold(); });
 
-  async function setSound(v) {
-    const on = await SFX.toggle(v);
-    const b = $("sound"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
-    $("soundTxt").textContent = on ? "On" : "Off"; $("vol").disabled = !on;
-    if (on) SFX.ui();
+  // sound is ON by default; the audio itself starts at the first click / key press (browser autoplay rule)
+  let soundWanted = true;
+  function soundUI() {
+    const b = $("sound"), live = SFX.on && SFX.state() === "running";
+    b.classList.toggle("on", soundWanted); b.classList.toggle("live", live); b.setAttribute("aria-pressed", String(soundWanted));
+    $("soundTxt").textContent = soundWanted ? "On" : "Off"; $("vol").disabled = !soundWanted;
   }
-  $("sound").addEventListener("click", () => setSound());
+  function setSound(v) { soundWanted = v; SFX.toggle(v); soundUI(); if (v) SFX.ui(); }
+  SFX.onState(soundUI);
+  const wake = () => { if (soundWanted && SFX.state() !== "running") { SFX.toggle(true); } };
+  window.addEventListener("pointerdown", wake, true);
+  window.addEventListener("keydown", wake, true);
+  setTimeout(() => { if (soundWanted) { SFX.toggle(true); soundUI(); } }, 0);   // plays at once where the browser allows it
+  $("sound").addEventListener("click", () => setSound(!soundWanted));
   $("vol").addEventListener("input", (e) => SFX.setVol(+e.target.value / 100));
   document.addEventListener("visibilitychange", () => SFX.suspend(document.hidden));
   document.querySelectorAll(".btn, .seg button").forEach((b) => { if (b.id !== "sound") b.addEventListener("click", () => SFX.ui()); });
@@ -1520,7 +1566,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     else if (k === "n") { setPlaying(false); nextEvent(); }
     else if (k === "g") { $("ghosts").checked = !$("ghosts").checked; lastPhase = -1; }
     else if (k === "p") $("pile").checked = !$("pile").checked;
-    else if (k === "m") setSound();
+    else if (k === "m") setSound(!soundWanted);
     else if (["arrowleft", "arrowright", "arrowup", "arrowdown", "q", "e"].includes(k)) { e.preventDefault(); if (!heldKeys.has(k)) { heldKeys.add(k); setHold(); } }
     else if (k === "r") goCam("iso");
     else if (k === "b") showRender(ov.hidden);
