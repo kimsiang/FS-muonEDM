@@ -770,6 +770,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
 
   // =================================================================== muEDM Phase I apparatus around the CHeT
   // Dimensions (mm) from EPJC 85 (2025) 622: Table 4, Sect. 4.2.4, Figs. 2, 10, 23, 24.
+  // The 30 orthogonal-fibre tiles of the 2025 design papers are not drawn: the as-built CHeT is cylinders only.
   // Everything is drawn as thin, low-opacity wireframe so the CHeT and the tracks stay unobstructed.
   const APC = { copper: 0xc98a4a, violet: 0x8b7bff, steel: 0x6f8fb0, sc: 0x38c6ff, scint: 0xa9dcff };
   function buildApparatus(scene) {
@@ -821,18 +822,6 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
       }));
       A.add(L(p, APC.copper, 0.22));
       label("correction coils · z ±235, ±285 mm", [-65, -65, 285]); }
-
-    // 6. CHeT tile planes: 30 radial planes, two orthogonal fibre layers each, ≈ 4 × 4 cm² (Fig. 24, NIM A 1080 170760)
-    { const p = [], r0 = 60, r1 = 100, h = 20;
-      for (let k = 0; k < 30; k++) {
-        const a = TWO_PI * k / 30, c = Math.cos(a), sn = Math.sin(a);
-        seg(p, [r0 * c, r0 * sn, -h], [r1 * c, r1 * sn, -h]); seg(p, [r1 * c, r1 * sn, -h], [r1 * c, r1 * sn, h]);
-        seg(p, [r1 * c, r1 * sn, h], [r0 * c, r0 * sn, h]); seg(p, [r0 * c, r0 * sn, h], [r0 * c, r0 * sn, -h]);
-        for (let j = 1; j < 4; j++) { const rr = r0 + (r1 - r0) * j / 4, zz = -h + 2 * h * j / 4;
-          seg(p, [rr * c, rr * sn, -h], [rr * c, rr * sn, h]); seg(p, [r0 * c, r0 * sn, zz], [r1 * c, r1 * sn, zz]); }
-      }
-      A.add(L(p, 0x3d6bff, 0.28));
-      label("CHeT tiles · 30 radial planes · g−2", [85, 85, 10]); }
 
     // 7. injection channels: Ø15 mm SC + iron shielded tubes, 800 mm, exits at (0, ±47, −455), (θ, φ) = (−42.3°, 10.6°) (Table 4)
     const th = -42.3 * Math.PI / 180, ph = 10.6 * Math.PI / 180;
@@ -1344,8 +1333,6 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
       [25, 35].forEach((r) => { ctx.beginPath(); ctx.arc(cx0, cy0, r * Sx, 0, TWO_PI); ctx.stroke(); });
       ctx.strokeStyle = "rgba(201,138,74,0.6)"; ctx.setLineDash([]);
       for (let q = 0; q < 4; q++) { ctx.beginPath(); ctx.arc(cx0, cy0, 41.5 * Sx, q * Math.PI / 2 + 0.12, (q + 1) * Math.PI / 2 - 0.12); ctx.stroke(); }
-      ctx.strokeStyle = "rgba(61,107,255,0.45)";
-      for (let k = 0; k < 30; k++) { const a = TWO_PI * k / 30; ctx.beginPath(); ctx.moveTo(X(60 * Math.cos(a)), Y(60 * Math.sin(a))); ctx.lineTo(X(Math.min(100, RV) * Math.cos(a)), Y(Math.min(100, RV) * Math.sin(a))); ctx.stroke(); }
     }
     ctx.setLineDash([2, 3]); ctx.strokeStyle = COL.cyan; ctx.beginPath(); ctx.arc(cx0, cy0, g.r0 * Sx, 0, TWO_PI); ctx.stroke(); ctx.setLineDash([]);
     ctx.save(); ctx.beginPath(); ctx.arc(cx0, cy0, RV * Sx, 0, TWO_PI); ctx.clip();

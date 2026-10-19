@@ -104,7 +104,7 @@ not a validation.
 * `CHeTGeometry.stereo_deg` — **placeholder 10°**; use the as-built angles.
 * Channel numbering — map your DAQ/Geant4 ids onto `geom.tables`.
 * `SimConfig` noise, efficiency, jitter; `RecoConfig` tolerances.
-* The 30 tile planes (g-2 module) are not yet included.
+* Cylinders only: the 30 orthogonal-fibre tiles in the 2025 design papers are not part of the as-built CHeT and are not modelled.
 
 ## Layout
 
