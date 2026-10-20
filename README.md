@@ -30,3 +30,13 @@ The muon track is displayed in cream color and the positron is in blue color.
 # Example radial field map
 
 ![An example field map simulated using COMSOL](run/figures/RadialEFieldCOMSOL.jpg)
+
+# CHeT tracking and live event display (2026)
+
+The [`chet-tracking/`](chet-tracking/) folder holds CPU/GPU positron tracking for the Cylindrical Helix Tracker (CHeT) of the muEDM Phase I experiment, with a live 3D event display.
+
+* **Live event display:** https://kimsiang.github.io/FS-muonEDM/ (served from `index.html` in this repository root). One simulated decay per second is tracked and helix-fitted in the browser, inside the Phase I apparatus.
+* **Python package:** NumPy (CPU) / CuPy (GPU) batched tracking: stereo crossings, triplet seeding, fit-based hit assignment and a joint z / time-of-flight helix fit. See [`chet-tracking/README.md`](chet-tracking/README.md).
+* **Blender render:** `chet-tracking/scripts/blender_event_display.py`.
+
+To update the live page after a change, run `python chet-tracking/web/build.py`, then copy `chet-tracking/docs/index.html` to `index.html` in the repository root.
