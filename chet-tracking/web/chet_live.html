@@ -70,10 +70,10 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
 @keyframes blink { 50% { opacity: 0.2; } }
 
 /* top-right controls */
-.ctrl { right: max(18px, env(safe-area-inset-right, 0px)); top: 18px; display: grid; gap: 10px; min-width: 300px; }
+.ctrl { right: max(18px, env(safe-area-inset-right, 0px)); top: 18px; display: grid; gap: 6px; min-width: 300px; }
 .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .btn { font-family: var(--hud); font-weight: 600; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--ink); background: rgba(34, 81, 255, 0.08); border: 1px solid var(--edge-hi); padding: 7px 12px; cursor: pointer;
+  color: var(--ink); background: rgba(34, 81, 255, 0.08); border: 1px solid var(--edge-hi); padding: 6px 12px; cursor: pointer;
   clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); transition: background .15s, color .15s; }
 .btn:hover { background: rgba(34, 81, 255, 0.28); }
 .btn.on { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 18px rgba(34, 81, 255, 0.6); }
@@ -81,7 +81,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
 .btn kbd, .chk kbd { font-family: var(--mono); font-size: 10px; color: var(--mute); margin-left: 6px; letter-spacing: 0; }
 .btn.on kbd { color: rgba(255, 255, 255, 0.7); }
 .seg { display: inline-flex; border: 1px solid var(--edge); }
-.seg button { font-family: var(--mono); font-size: 11px; color: var(--mute); background: transparent; border: 0; padding: 6px 9px; cursor: pointer; }
+.seg button { font-family: var(--mono); font-size: 11px; color: var(--mute); background: transparent; border: 0; padding: 5px 9px; cursor: pointer; }
 .seg button[aria-pressed="true"] { color: #fff; background: rgba(34, 81, 255, 0.55); }
 .lab { font-family: var(--hud); font-size: 10px; letter-spacing: 0.18em; color: var(--dim); text-transform: uppercase; min-width: 46px; }
 .chk { display: inline-flex; gap: 7px; align-items: center; font-family: var(--hud); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
@@ -148,7 +148,19 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   padding: 2px 6px; border-left: 1px solid var(--edge-hi); background: rgba(3, 14, 23, 0.55); }
 .lbl.trk { color: #fff; border-color: var(--accent-hi); font-size: 11px; }
 .lbl.vtx { color: var(--cyan); border-color: var(--cyan); }
-.lbl.sub { color: var(--dim); border-color: rgba(201, 138, 74, 0.55); font-size: 9.5px; background: rgba(3, 14, 23, 0.4); }
+.co { position: absolute; transform: translate(-6px, -50%); pointer-events: auto; cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--hud); font-weight: 600; font-size: 10.5px; letter-spacing: 0.06em; color: var(--ink); background: rgba(6, 26, 42, 0.82);
+  border: 1px solid var(--edge-hi); border-radius: 999px; padding: 3px 10px 3px 3px; white-space: nowrap; backdrop-filter: blur(6px); transition: opacity .2s; }
+.co::before { content: ""; position: absolute; left: -7px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--accent-hi); box-shadow: 0 0 8px var(--accent); }
+.co b { font-family: var(--mono); font-size: 10px; background: var(--accent); color: #fff; border-radius: 999px; padding: 2px 6px; }
+.co:hover, .co.sel { border-color: #fff; background: rgba(34, 81, 255, 0.45); }
+.co:focus-visible { outline: 2px solid var(--cyan); }
+.card { position: absolute; z-index: 6; width: 290px; max-width: calc(100vw - 32px); background: var(--glass-hi); border: 1px solid var(--edge-hi); padding: 12px 14px 14px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45); }
+.card .eyebrow { font-family: var(--hud); font-size: 10px; letter-spacing: 0.2em; color: var(--cyan); text-transform: uppercase; }
+.card h3 { font-family: var(--hud); font-weight: 700; font-size: 17px; margin: 4px 0 6px; line-height: 1.15; }
+.card p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--ink); }
+.card .x { position: absolute; top: 6px; right: 8px; background: none; border: 0; color: var(--mute); font-size: 14px; cursor: pointer; padding: 4px; }
 
 .legend { position: absolute; left: 50%; transform: translateX(-50%); top: 22px; display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
   font-family: var(--hud); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); pointer-events: none; max-width: 40%; }
@@ -245,6 +257,11 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
         <label class="vol"><input type="range" id="vol" min="0" max="100" value="60" aria-label="Sound volume"></label>
         <label class="chk" title="Show the muEDM apparatus around the CHeT"><input type="checkbox" id="app" checked> setup<kbd>A</kbd></label>
       </div>
+      <div class="row"><span class="lab">Look</span>
+        <label class="chk"><input type="checkbox" id="cutaway" checked> cutaway<kbd>C</kbd></label>
+        <label class="chk"><input type="checkbox" id="co" checked> callouts<kbd>L</kbd></label>
+        <label class="vol" title="Exploded view"><span class="lab" style="min-width:0">explode</span><input type="range" id="explode" min="0" max="100" value="0" aria-label="Exploded view"></label>
+      </div>
     </div>
 
     <div class="panel track">
@@ -315,6 +332,8 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/GammaCorrectionShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/environments/RoomEnvironment.js"></script>
 <script>
 // CHeT tracking engine — JavaScript port of chet_tracking (single event at a time).
 // Same chain as the Python package: toy MC -> dead time -> stereo crossings ->
@@ -706,7 +725,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     }
     const g2 = new THREE.LineSegmentsGeometry(); g2.setPositions(arr);
     const m = obj.material;
-    const fm = new THREE.LineMaterial({ color: m.color.getHex(), linewidth: FAT.width, transparent: true, opacity: m.opacity, depthWrite: false });
+    const fm = new THREE.LineMaterial({ color: m.color.getHex(), linewidth: FAT.width, transparent: true, opacity: m.opacity, depthWrite: false, clipping: true });
     fm.blending = m.blending; fm.fog = true;
     if (!FAT.res) FAT.res = new THREE.Vector2(1, 1);
     fm.uniforms.resolution.value = FAT.res;            // shared, updated on resize
@@ -733,6 +752,10 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0x000000, 0);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.72;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.localClippingEnabled = true;
+    CUT.plane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x030e17, 0.0036);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 1200);
@@ -746,24 +769,24 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
         const phis = []; for (let f = 0; f < c.nfib; f += 4) phis.push((f + 0.5) * c.dphi);
         const col = s ? 0x2c5296 : 0x3460a8;
         det.add(new THREE.LineSegments(lineGeo(fibrePositions(c, sgn, c.r + (s ? 0.6 : 0), phis)),
-          new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: (0.16 + 0.04 * ci) * 0.7, depthWrite: false })));   // ×0.7: same overall brightness at 1.5× width
+          new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: (0.16 + 0.04 * ci) * 0.45, depthWrite: false })));   // ×0.7: same overall brightness at 1.5× width
       });
-      [-g.L, g.L].forEach((z) => det.add(ring(c.r + 0.3, z, 0x3e64a8, 0.6)));
     });
-    // carbon-fibre style end flanges
-    [-g.L - 4, g.L + 4].forEach((z) => {
-      const m = new THREE.Mesh(new THREE.RingGeometry(1.6, 5.2, 96), new THREE.MeshBasicMaterial({ color: 0x0b2440, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
-      m.rotation.x = -Math.PI / 2; m.position.y = z / 10; det.add(m);
-      det.add(ring(52, z, 0x2a5aa8, 0.5)); det.add(ring(16, z, 0x2a5aa8, 0.35));
-    });
-    // solenoid bore: fresnel shell
-    const shell = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 110, 96, 1, true), new THREE.ShaderMaterial({
+    // lighting: image-based (room environment) + key / rim / fill
+    if (THREE.PMREMGenerator && THREE.RoomEnvironment) {
+      const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new THREE.RoomEnvironment(), 0.04).texture; pm.dispose();
+    }
+    scene.add(new THREE.HemisphereLight(0x9cc0ff, 0x05101c, 0.25));
+    const key = new THREE.DirectionalLight(0xffffff, 0.7); key.position.set(60, 90, 50); scene.add(key);
+    const rim = new THREE.DirectionalLight(0x4f7dff, 0.9); rim.position.set(-70, 30, -60); scene.add(rim);
+    const glowL = new THREE.PointLight(0x38c6ff, 0.6, 45); glowL.position.set(0, 0, 0); scene.add(glowL);
+    const shellUnused = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 110, 96, 1, true), new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
       uniforms: { c: { value: new THREE.Color(0x2251ff) } },
       vertexShader: "varying vec3 vN; varying vec3 vV; varying float vY; void main(){ vec4 mv = modelViewMatrix*vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); vY = position.y; gl_Position = projectionMatrix*mv; }",
       fragmentShader: "uniform vec3 c; varying vec3 vN; varying vec3 vV; varying float vY; void main(){ float f = pow(1.0-abs(dot(vN,vV)), 3.0); float band = 0.5+0.5*smoothstep(0.0,1.0,abs(sin(vY*1.6))); gl_FragColor = vec4(c*(0.22*f*band), f*0.35); }",
     }));
-    scene.add(shell);
+    shellUnused.visible = false;
     // floor: polar grid
     const floor = new THREE.Group(); floor.position.y = -112;
     for (let r = 4; r <= 28; r += 4) floor.add(ring(r * 10, 0, 0x16365e, r % 8 ? 0.25 : 0.5));
@@ -781,17 +804,18 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     const dust = []; for (let i = 0; i < 500; i++) { const r = 20 + Math.random() * 120, a = Math.random() * TWO_PI; dust.push(r * Math.cos(a), (Math.random() - 0.5) * 120, r * Math.sin(a)); }
     scene.add(add(new THREE.Points(lineGeo(dust), new THREE.PointsMaterial({ color: 0x3a6ea8, size: 0.35, opacity: 0.35 }))));
 
-    const app = buildApparatus(scene);
-    const matMap = new Map();
-    fattenTree(scene, matMap);
-    app.kick.mats = app.kick.mats.map((m) => matMap.get(m));
-    app.trig.mats = app.trig.mats.map((m) => matMap.get(m));
+    const app = buildSolidApparatus(scene);
+    fattenTree(scene, new Map());
+    S.detWire = det;
 
     // post-processing bloom
     const composer = new THREE.EffectComposer(renderer);
     composer.addPass(new THREE.RenderPass(scene, camera));
     const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(512, 512), 0.95, 0.5, 0.42);
+    bloom.threshold = 0.82;
     composer.addPass(bloom);
+    if (THREE.GammaCorrectionShader) composer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));
+    renderer.outputEncoding = THREE.LinearEncoding;          // the gamma pass does the sRGB conversion once
 
     Object.assign(S, { renderer, scene, camera, controls, composer, bloom, dyn: new THREE.Group(), muPh, muZ, muPos, muGeo,
       glowW: glowTex("rgba(255,255,255,1)", "rgba(110,139,255,0.9)"), glowA: glowTex("rgba(255,250,235,1)", "rgba(255,181,71,0.9)"),
@@ -810,101 +834,143 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   const INJV = (() => { const th = 42.3 * Math.PI / 180, ph = -10.6 * Math.PI / 180; return [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)]; })();
   const INJ_EXIT = [0, 47, -455];     // CW injection tube exit (mm)
 
-  // =================================================================== muEDM Phase I apparatus around the CHeT
-  // Dimensions (mm) from EPJC 85 (2025) 622: Table 4, Sect. 4.2.4, Figs. 2, 10, 23, 24.
-  // The 30 orthogonal-fibre tiles of the 2025 design papers are not drawn: the as-built CHeT is cylinders only.
-  // Everything is drawn as thin, low-opacity wireframe so the CHeT and the tracks stay unobstructed.
-  const APC = { copper: 0xc98a4a, violet: 0x8b7bff, steel: 0x6f8fb0, sc: 0x38c6ff, scint: 0xa9dcff };
-  function buildApparatus(scene) {
+  // =================================================================== solid, lit apparatus (PBR) with camera-facing cutaway
+  // Geometry (mm) from EPJC 85 (2025) 622: Table 4, Sect. 4.2.4, Figs. 2, 10, 21-23. Cylinders only for the CHeT.
+  const CUT = { on: true, plane: null, explode: 0 };
+  const MAT = {};
+  function stripesTex(w, h, draw) { const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d"); draw(x, w, h);
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; }
+  function makeMaterials() {
+    // stereo-fibre weave: two families of lines at ±10° to the axis, one line per SiPM channel (4 fibres)
+    // one texture for a 1/4 turn of the r = 30 mm reference circumference; repeated per cylinder so the pitch stays 2 mm
+    const C0 = TWO_PI * 30 / 4;
+    const weaveTex = stripesTex(1024, 1024, (x, w, h) => {
+      x.fillStyle = "#0b1f3f"; x.fillRect(0, 0, w, h);
+      const C = C0, L = 2 * g.L, du = (L * Math.tan(10 * Math.PI / 180) / C) * w, pitch = (2.0 / C) * w;
+      x.lineWidth = 1.1;
+      for (const sgn of [1, -1]) { x.strokeStyle = sgn > 0 ? "rgba(140,190,255,0.38)" : "rgba(110,160,235,0.30)";
+        for (let u = -w; u < 2 * w; u += pitch) { x.beginPath(); x.moveTo(u, 0); x.lineTo(u + sgn * du, h); x.stroke(); } }
+    });
+    MAT.fibre = g.cyl.map((c) => { const tx = weaveTex.clone(); tx.needsUpdate = true; tx.repeat.set(TWO_PI * c.r / C0, 1);
+      return new THREE.MeshPhysicalMaterial({ map: tx, emissiveMap: tx, emissive: new THREE.Color(0x2a66c8), emissiveIntensity: 0.14,
+      color: 0xffffff, metalness: 0.05, roughness: 0.55, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, clearcoat: 0.6, clearcoatRoughness: 0.3 }); });
+    const wind = stripesTex(512, 64, (x, w, h) => { x.fillStyle = "#d08a4a"; x.fillRect(0, 0, w, h); x.strokeStyle = "rgba(60,25,5,0.55)"; x.lineWidth = 1;
+      for (let u = 0; u < w; u += 6) { x.beginPath(); x.moveTo(u, 0); x.lineTo(u, h); x.stroke(); } });
+    wind.repeat.set(40, 1);
+    MAT.copper = new THREE.MeshStandardMaterial({ map: wind, color: 0xffffff, metalness: 0.95, roughness: 0.32 });
+    MAT.copperPlain = new THREE.MeshStandardMaterial({ color: 0xc27a3c, metalness: 0.95, roughness: 0.3 });
+    MAT.kapton = new THREE.MeshPhysicalMaterial({ color: 0xd3a86a, metalness: 0.9, roughness: 0.28, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false, clearcoat: 1 });
+    const seg = stripesTex(1024, 64, (x, w, h) => { x.fillStyle = "#e8c48a"; x.fillRect(0, 0, w, h); x.fillStyle = "#3a2a18"; for (let k = 0; k < 36; k++) x.fillRect(k * w / 36, 0, 2, h); });
+    MAT.kaptonHV = new THREE.MeshPhysicalMaterial({ map: seg, color: 0xffffff, metalness: 0.85, roughness: 0.3, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false, clearcoat: 1 });
+    MAT.steel = new THREE.MeshStandardMaterial({ color: 0x9fb0c2, metalness: 0.9, roughness: 0.38 });
+    MAT.steelDark = new THREE.MeshStandardMaterial({ color: 0x5b6f86, metalness: 0.85, roughness: 0.5 });
+    MAT.cryo = new THREE.MeshBasicMaterial({ color: 0x18304a, transparent: true, opacity: 0.09, side: THREE.DoubleSide, depthWrite: false });
+    MAT.bore = new THREE.MeshBasicMaterial({ color: 0x2a4c70, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
+    MAT.sc = new THREE.MeshStandardMaterial({ color: 0x24406e, metalness: 0.8, roughness: 0.35 });
+    MAT.scint = new THREE.MeshPhysicalMaterial({ color: 0xbfe6ff, emissive: 0x2a6fa8, emissiveIntensity: 0.25, metalness: 0, roughness: 0.15, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false, clearcoat: 1 });
+    MAT.carbon = new THREE.MeshStandardMaterial({ color: 0x1c2733, metalness: 0.4, roughness: 0.6 });
+    MAT.floor = new THREE.MeshBasicMaterial({ color: 0x030a12, transparent: true, opacity: 0.75 });
+    Object.values(MAT).flat().forEach((m) => { if ("envMapIntensity" in m) m.envMapIntensity = 0.45; });
+  }
+  // annulus / ring: lathe of a rectangle (ri..ro, -h/2..h/2) around the detector z axis (three y)
+  const annulus = (ri, ro, h, mat, nseg = 96) => {
+    const pts = [new THREE.Vector2(ri, -h / 2), new THREE.Vector2(ro, -h / 2), new THREE.Vector2(ro, h / 2), new THREE.Vector2(ri, h / 2), new THREE.Vector2(ri, -h / 2)];
+    return new THREE.Mesh(new THREE.LatheGeometry(pts, nseg), mat);
+  };
+  const tube = (r, h, mat, open = true, nseg = 96) => new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, nseg, 1, open), mat);
+  const atZ = (m, zmm) => { m.position.y = zmm / 10; return m; };
+
+  function buildSolidApparatus(scene) {
+    makeMaterials();
     const A = new THREE.Group(); A.name = "apparatus"; scene.add(A);
-    const L = (pos, color, opacity) => add(new THREE.LineSegments(lineGeo(pos), new THREE.LineBasicMaterial({ color, opacity })));
-    const circle = (pos, r, z, n = 96, x0 = 0, y0 = 0) => {
-      for (let k = 0; k < n; k++) for (const kk of [k, k + 1]) { const a = TWO_PI * kk / n, v = V3(x0 + r * Math.cos(a), y0 + r * Math.sin(a), z); pos.push(v.x, v.y, v.z); }
-    };
-    const seg = (pos, p, q) => { const a = V3(...p), b = V3(...q); pos.push(a.x, a.y, a.z, b.x, b.y, b.z); };
-    const labels = [];
-    const label = (text, at) => labels.push({ el: mkLabel(text, "sub"), pos: V3(...at) });
+    const cut = [], parts = {};
+    const reg = (key, mesh, clip = true) => { (parts[key] = parts[key] || []).push(mesh); if (clip) cut.push(mesh); A.add(mesh); return mesh; };
+    const callouts = [];
+    const callout = (n, key, title, at, desc) => callouts.push({ n, key, title, desc, pos: V3(...at), el: mkCallout(n, title) });
 
-    // 1. superconducting solenoid: warm bore Ø200, cryostat Ø≈1000, ends at ≈ ±550 (Fig. 2, 23)
-    { const p = [];
-      [-550, 550].forEach((z) => { circle(p, 100, z, 128); circle(p, 500, z, 160); });
-      for (let k = 0; k < 24; k++) { const a = TWO_PI * k / 24; seg(p, [500 * Math.cos(a), 500 * Math.sin(a), -550], [500 * Math.cos(a), 500 * Math.sin(a), 550]); }
-      for (let k = 0; k < 12; k++) { const a = TWO_PI * k / 12; seg(p, [100 * Math.cos(a), 100 * Math.sin(a), -550], [100 * Math.cos(a), 100 * Math.sin(a), 550]); }
-      A.add(L(p, APC.steel, 0.16));
-      label("SC solenoid · 3 T · warm bore Ø200 mm", [-300, -300, 560]); }
+    // CHeT fibre cylinders (solid translucent shells with stereo weave) + carbon end rings
+    const chet = new THREE.Group(); A.add(chet);
+    g.cyl.forEach((c, i) => {
+      const m = tube(c.r / 10 + 0.04, 2 * g.L / 10, MAT.fibre[i]); chet.add(m); cut.push(m);
+      [-g.L, g.L].forEach((z) => { const rg = atZ(annulus(c.r / 10 - 0.08, c.r / 10 + 0.16, 0.35, MAT.carbon), z); chet.add(rg); cut.push(rg); });
+    });
+    parts.chet = [chet];
+    callout(1, "chet", "CHeT fibre tracker", [45 * Math.cos(0.9), 45 * Math.sin(0.9), 150],
+      "Cylindrical Helix Tracker: four cylinders at r = 20, 23, 36 and 45 mm, each two stereo layers of 500 µm scintillating fibres (±10° placeholder), 400 mm long, four fibres per SiPM, 768 channels. Measures the decay-positron helix: p, θ, φ.");
 
-    // 2. frozen-spin electrodes: HV r = 25 mm (+1.8 kV, segmented), ground r = 35 mm (Sect. 4.2.4)
-    { const zE = 250, hv = [], gnd = [];
-      for (let k = 0; k < 36; k++) { const a = TWO_PI * (k + 0.5) / 36; seg(hv, [25 * Math.cos(a), 25 * Math.sin(a), -zE], [25 * Math.cos(a), 25 * Math.sin(a), zE]); }
-      for (let k = 0; k < 48; k++) { const a = TWO_PI * k / 48; seg(gnd, [35 * Math.cos(a), 35 * Math.sin(a), -zE], [35 * Math.cos(a), 35 * Math.sin(a), zE]); }
-      [-zE, zE].forEach((z) => { circle(hv, 25, z); circle(gnd, 35, z); });
-      A.add(L(hv, APC.violet, 0.12)); A.add(L(gnd, APC.steel, 0.10));
-      label("frozen-spin electrodes · HV r 25 · ground r 35 mm", [-55, -55, -zE]); }
+    // frozen-spin electrodes: HV r 25 mm (+1.8 kV, segmented aluminised Kapton), ground r 35 mm
+    reg("elec", tube(2.5, 50, MAT.kaptonHV)); reg("elec", tube(3.5, 50, MAT.kapton));
+    callout(6, "elec", "Frozen-spin electrodes", [35 * Math.cos(-2.4), 35 * Math.sin(-2.4), -200],
+      "Concentric cylindrical electrodes around the orbit: high-voltage at r = 25 mm (≈1.8 kV) and ground at r = 35 mm. Their radial E field cancels the (g−2) precession so the spin follows the momentum (frozen spin). Segmented to let the magnetic kick through.");
 
-    // 3. magnetic pulse (kicker) coil: r 41-42 mm, length 90 mm at z = 0, four quadrant saddle loops (Table 4, Fig. 13)
-    const kick = { p: [], mats: [] };
-    { const r = 41.5, h = 45, gap = 0.12;
-      for (let q = 0; q < 4; q++) {
-        const a0 = q * Math.PI / 2 + gap, a1 = (q + 1) * Math.PI / 2 - gap, p = [];
-        [-h, h].forEach((z) => { for (let k = 0; k < 24; k++) for (const kk of [k, k + 1]) { const a = a0 + (a1 - a0) * kk / 24, v = V3(r * Math.cos(a), r * Math.sin(a), z); p.push(v.x, v.y, v.z); } });
-        [a0, a1].forEach((a) => seg(p, [r * Math.cos(a), r * Math.sin(a), -h], [r * Math.cos(a), r * Math.sin(a), h]));
-        const ls = L(p, APC.copper, 0.45); A.add(ls); kick.mats.push(ls.material);
-      }
-      label("kicker coil · 4 quadrants · 192 A pulse", [-75, -75, 70]); }
+    // kicker: four quadrant saddle coils, r 41–42 mm, 90 mm long at z = 0
+    const kickM = [];
+    for (let q = 0; q < 4; q++) {
+      const mm = new THREE.Mesh(new THREE.CylinderGeometry(4.15, 4.15, 9, 32, 1, true, q * Math.PI / 2 + 0.12, Math.PI / 2 - 0.24), MAT.copperPlain.clone());
+      mm.material.emissive = new THREE.Color(0xff9a3c); mm.material.emissiveIntensity = 0; mm.material.side = THREE.DoubleSide;
+      reg("kick", mm); kickM.push(mm.material);
+      [-4.5, 4.5].forEach((y) => { const bar = new THREE.Mesh(new THREE.TorusGeometry(4.15, 0.12, 8, 32, Math.PI / 2 - 0.24), MAT.copperPlain); bar.rotation.x = Math.PI / 2; bar.rotation.z = -(q * Math.PI / 2 + 0.12); bar.position.y = y; reg("kick", bar); });
+    }
+    callout(3, "kick", "Magnetic kicker", [41.5 * Math.cos(-2.6), 41.5 * Math.sin(-2.6), 60],
+      "Pulse coil of four quadrant loops at r ≈ 41 mm, 90 mm long. Triggered by the entrance detector, a 192 A / 35 ns FWHM pulse gives a radial B kick that removes the muon's longitudinal momentum and drops it onto the stored orbit.");
 
-    // 4. weakly-focusing coil: z = 0, r 50-60 mm, length 10 mm (Table 4)
-    { const p = []; for (const r of [50, 53.3, 56.7, 60]) for (const z of [-5, 5]) circle(p, r, z, 128);
-      A.add(L(p, APC.copper, 0.30));
-      label("weakly-focusing coil · r 50–60 mm", [-80, -80, -20]); }
+    // weakly-focusing coil: z = 0, r 50–60 mm, 10 mm long
+    reg("wf", annulus(5.0, 6.0, 1.0, MAT.copper));
+    callout(4, "wf", "Weakly-focusing coil", [60 * Math.cos(-1.1), 60 * Math.sin(-1.1), 0],
+      "Local coil at z = 0 (r 50–60 mm, 1.5 A/mm²) that adds a shallow longitudinal magnetic well so the kicked muons stay trapped around the centre for several lifetimes.");
 
-    // 5. correction coils: (z, r_in, r_out, length) = (235, 40, 60, 30) and (285, 40, 70, 30), both ends (Table 4, Fig. 23)
-    { const p = [];
-      [[235, 40, 60], [285, 40, 70]].forEach(([zc, ri, ro]) => [-1, 1].forEach((sg) => {
-        for (let i = 0; i <= 3; i++) for (const dz of [-15, 0, 15]) circle(p, ri + (ro - ri) * i / 3, sg * zc + dz, 96);
-      }));
-      A.add(L(p, APC.copper, 0.22));
-      label("correction coils · z ±235, ±285 mm", [-65, -65, 285]); }
+    // correction coils: (z, ri, ro, l) = (235, 40, 60, 30) and (285, 40, 70, 30), both ends
+    [[235, 40, 60], [285, 40, 70]].forEach(([zc, ri, ro]) => [-1, 1].forEach((sg) => reg("corr", atZ(annulus(ri / 10, ro / 10, 3.0, MAT.copper), sg * zc))));
+    callout(5, "corr", "Correction coils", [70 * Math.cos(-2.2), 70 * Math.sin(-2.2), 300],
+      "Water-cooled coils at z = ±235 and ±285 mm (1.8 and 0.74 A/mm²) that flatten the two field maxima of the solenoid's split coil, so the injected muon sees a monotonically rising B field.");
 
-    // 7. injection channels: Ø15 mm SC + iron shielded tubes, 800 mm, exits at (0, ±47, −455), (θ, φ) = (−42.3°, 10.6°) (Table 4)
-    const d = INJV;      // muon direction along the tube (Table 4 angles, mirrored in x so the CW tube feeds a clockwise orbit)
-    const trig = { mats: [] };
-    { const sc = [], fe = [];
-      [47, -47].forEach((y0) => {
-        const ex = [0, y0, -455];
-        const u = [-d[1], d[0], 0], un = Math.hypot(...u); u.forEach((_, i) => (u[i] /= un));
-        const w = [d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0]];
-        const ringAt = (pos, s0, r, n = 20) => { for (let k = 0; k < n; k++) for (const kk of [k, k + 1]) { const a = TWO_PI * kk / n;
-          const q = [0, 1, 2].map((i) => ex[i] - d[i] * s0 + r * (Math.cos(a) * u[i] + Math.sin(a) * w[i])); const v = V3(...q); pos.push(v.x, v.y, v.z); } };
-        for (let s0 = 0; s0 <= 800; s0 += 50) { ringAt(sc, s0, 7.5); if (s0 >= 150) ringAt(fe, s0, 16); }
-        for (let k = 0; k < 6; k++) { const a = TWO_PI * k / 6; for (const [pos, r, sA] of [[sc, 7.5, 0], [fe, 16, 150]]) {
-          const P = (s0) => [0, 1, 2].map((i) => ex[i] - d[i] * s0 + r * (Math.cos(a) * u[i] + Math.sin(a) * w[i])); seg(pos, P(sA), P(800)); } }
-        // 8. muon entrance trigger at the exit: 100 µm gate tile + 5 mm active aperture (ACS) with a hole (Sect. 4.3.4, Fig. 21)
-        const tp = [], sq = (s0, half, hole) => {
-          const C = [0, 1, 2].map((i) => ex[i] + d[i] * s0), P = (a, b) => [0, 1, 2].map((i) => C[i] + a * u[i] + b * w[i]);
-          const c4 = [P(-half, -half), P(half, -half), P(half, half), P(-half, half)];
-          for (let i = 0; i < 4; i++) seg(tp, c4[i], c4[(i + 1) % 4]);
-          if (hole) for (let k = 0; k < 16; k++) { const a0 = TWO_PI * k / 16, a1 = TWO_PI * (k + 1) / 16; seg(tp, P(hole * Math.cos(a0), hole * Math.sin(a0)), P(hole * Math.cos(a1), hole * Math.sin(a1))); }
-        };
-        sq(2, 11, 0); sq(14, 18, 6);
-        const tl = L(tp, APC.scint, 0.55); A.add(tl); trig.mats.push(tl.material);
-      });
-      A.add(L(sc, APC.sc, 0.28)); A.add(L(fe, APC.steel, 0.18));
-      label("injection channels · SC + iron shield · Ø15 mm", [-d[0] * 330, 47 - d[1] * 330, -455 - d[2] * 330]);
-      label("muon entrance trigger · gate + active aperture", [30, 75, -455]); }
+    // solenoid: warm bore Ø200 mm, cryostat Ø≈1000 mm, length ≈1100 mm, end flanges
+    reg("sol", tube(10, 110, MAT.bore), false); reg("sol", tube(50, 110, MAT.cryo), false);
+    [-55, 55].forEach((y) => { const f = annulus(10, 13.5, 1.2, MAT.steelDark); f.position.y = y; reg("sol", f);
+      const o = annulus(47, 50, 1.6, MAT.steelDark); o.position.y = y; reg("sol", o); });
+    [-48, 48].forEach((y) => { const hs = annulus(9.5, 9.9, 1.0, MAT.steel); hs.position.y = y; reg("sol", hs); });
+    callout(9, "sol", "Superconducting solenoid", [100 * Math.cos(2.3), 100 * Math.sin(2.3), 480],
+      "Existing PSI SC solenoid, B = 3 T (up to 5 T), warm bore Ø200 mm, cryostat Ø≈1 m. In Phase II the frozen-spin trap moves to a dedicated magnet.");
 
-    // 9. muon end-cap detector: six hexagonal tiles, 15 < r < 45 mm, downstream of the CHeT (Fig. 22, 23)
-    { const p = [], zE = 320, Rh = 15;
-      for (let k = 0; k < 6; k++) { const a = TWO_PI * k / 6 + Math.PI / 6, cx = 30 * Math.cos(a), cy = 30 * Math.sin(a);
-        for (let j = 0; j < 6; j++) { const b0 = TWO_PI * j / 6, b1 = TWO_PI * (j + 1) / 6;
-          seg(p, [cx + Rh * Math.cos(b0), cy + Rh * Math.sin(b0), zE], [cx + Rh * Math.cos(b1), cy + Rh * Math.sin(b1), zE]); } }
-      A.add(L(p, APC.scint, 0.45));
-      label("muon end detector · 6 hex tiles", [45, 45, 340]); }
+    // injection channels and entrance trigger (CW tube at y = +47, CCW at −47), direction INJV
+    const d = INJV, tubes = new THREE.Group(); A.add(tubes); parts.inj = [tubes];
+    const dir3 = V3(d[0], d[1], d[2]).normalize();
+    const trigM = [];
+    [47, -47].forEach((y0) => {
+      const ex = V3(0, y0, -455);
+      const place = (mesh, s0, len) => { mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir3); mesh.position.copy(ex).addScaledVector(dir3, -(s0 + len / 2) / 10); tubes.add(mesh); return mesh; };
+      place(tube(0.75, 80, MAT.sc, false, 32), 0, 800);                 // SC shield tube Ø15 mm, 800 mm
+      place(tube(1.6, 65, MAT.steelDark, false, 32), 150, 650);          // iron shield beyond the fringe region
+      // entrance trigger: 100 µm gate + 5 mm active aperture with hole
+      const gate = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.03, 2.2), MAT.scint.clone()); gate.material.emissiveIntensity = 0.3; place(gate, -2, 0);
+      const sh = new THREE.Shape(); sh.moveTo(-1.8, -1.8); sh.lineTo(1.8, -1.8); sh.lineTo(1.8, 1.8); sh.lineTo(-1.8, 1.8); sh.closePath();
+      const hole = new THREE.Path(); hole.absarc(0, 0, 0.6, 0, TWO_PI, true); sh.holes.push(hole);
+      const acs = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.5, bevelEnabled: false }), MAT.scint.clone()); acs.geometry.rotateX(-Math.PI / 2); place(acs, -14, 0);
+      trigM.push(gate.material, acs.material);
+    });
+    callout(2, "inj", "Injection channels & entrance trigger", [-d[0] * 200, 47 - d[1] * 200, -455 - d[2] * 200],
+      "Two parallel Ø15 mm tubes, 800 mm long, shielded by a superconducting shield and an iron tube (shielding factor 100) so the fringe field does not deflect the 28 MeV/c surface muons. At each exit a 100 µm gate scintillator and a 5 mm active-aperture scintillator with a hole form the entrance trigger: an anti-coincidence fires the kicker only for muons on a storable trajectory.");
 
-    // stainless end plates and heat shield at the bore ends (outline only, never covers the axis)
-    { const p = []; [-550, 550].forEach((z) => { circle(p, 98, z, 128); circle(p, 60, z, 96); }); circle(p, 95, -480, 128);
-      A.add(L(p, APC.steel, 0.14)); }
+    // muon end detector: six hexagonal tiles, 15 < r < 45 mm, downstream
+    const hex = new THREE.Shape(); for (let j = 0; j < 6; j++) { const a = TWO_PI * j / 6, px = 1.5 * Math.cos(a), py = 1.5 * Math.sin(a); j ? hex.lineTo(px, py) : hex.moveTo(px, py); } hex.closePath();
+    for (let k = 0; k < 6; k++) { const a = TWO_PI * k / 6 + Math.PI / 6;
+      const m = new THREE.Mesh(new THREE.ExtrudeGeometry(hex, { depth: 0.2, bevelEnabled: false }), MAT.scint);
+      m.geometry.rotateX(-Math.PI / 2); m.position.copy(V3(30 * Math.cos(a), 30 * Math.sin(a), 320)); reg("end", m, false); }
+    callout(8, "end", "Muon end detector", [45 * Math.cos(-2.4), 45 * Math.sin(-2.4), 345],
+      "Six hexagonal scintillator tiles covering 15 < r < 45 mm downstream of the trap. A muon that is not kicked onto the orbit hits them, which resets the trigger; stored muons never reach it.");
 
-    return { group: A, labels, kick, trig };
+    // positron tracker callout for the stored beam
+    callout(7, "orbit", "Stored μ⁺ orbit", [g.r0 * Math.cos(2.0), g.r0 * Math.sin(2.0), 20],
+      "Muons of 28 MeV/c stored on a 30 mm radius orbit (cyclotron period ≈ 3 ns) inside the frozen-spin electrodes. Any EDM tilts the spin out of the orbit plane, seen as a slowly growing up/down asymmetry of the decay positrons.");
+
+    // floor
+    const fl = new THREE.Mesh(new THREE.CircleGeometry(300, 96), MAT.floor); fl.rotation.x = -Math.PI / 2; fl.position.y = -112.2; A.add(fl);
+
+    return { group: A, cut, parts, callouts, kick: { mats: kickM }, trig: { mats: trigM } };
+  }
+  function mkCallout(n, title) {
+    const d = document.createElement("button"); d.type = "button"; d.className = "co"; d.innerHTML = `<b>${String(n).padStart(2, "0")}</b><span>${title}</span>`;
+    $("labels").appendChild(d); return d;
   }
 
   function mkLabel(text, cls = "") { const d = document.createElement("div"); d.className = "lbl " + cls; d.textContent = text; $("labels").appendChild(d); return d; }
@@ -1229,13 +1295,26 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     S.labels.forEach((L, i) => project(L.el, L.pos, i === 0 || camD0 < 140));
     const showApp = $("app").checked;
     S.app.group.visible = showApp;
-    const camD = S.camera.position.distanceTo(S.controls.target), lblA = Math.max(0, Math.min(1, (camD - 125) / 35));
-    S.app.labels.forEach((L) => { project(L.el, L.pos, showApp && lblA > 0); L.el.style.opacity = lblA; });
+    // cutaway: clip the half of every shell that faces the camera (plane through the solenoid axis)
+    { const n = S.camera.position.clone().sub(S.controls.target); n.y = 0; if (n.lengthSq() < 1e-6) n.set(1, 0, 0); n.normalize().negate();
+      CUT.plane.normal.copy(n); CUT.plane.constant = 0.6;
+      const planes = CUT.on ? [CUT.plane] : [];
+      S.app.cut.forEach((m) => { if (m.material.clippingPlanes !== planes) m.material.clippingPlanes = planes; });
+      S.detWire.children.forEach((m) => { if (m.material.clippingPlanes !== planes) m.material.clippingPlanes = planes; }); }
+    // exploded view: end components slide out along the axis
+    { const e = CUT.explode, P = S.app.parts, y0 = (m) => (m.userData.y0 === undefined ? (m.userData.y0 = m.position.y) : m.userData.y0);
+      P.corr.forEach((m) => { m.position.y = y0(m) * (1 + 0.9 * e); });
+      P.sol.forEach((m) => { m.position.y = y0(m) + Math.sign(y0(m)) * 30 * e; if (m.geometry.parameters && m.geometry.parameters.radiusTop) m.scale.set(1 + 0.6 * e, 1, 1 + 0.6 * e); });
+      P.end.forEach((m) => { m.position.y = y0(m) + 25 * e; });
+      P.inj[0].position.y = -30 * e; P.wf.forEach((m) => m.scale.set(1 + 0.5 * e, 1, 1 + 0.5 * e));
+      P.elec.forEach((m, i) => m.scale.set(1 + (i ? 0.9 : 0.45) * e, 1, 1 + (i ? 0.9 : 0.45) * e)); }
+    const camD = S.camera.position.distanceTo(S.controls.target), coA = Math.max(0, Math.min(1, (camD - 100) / 20));
+    S.app.callouts.forEach((C) => { const on = showApp && $("co").checked && coA > 0; project(C.el, C.pos, on); C.el.style.opacity = coA; });
     // the event's muon passed the entrance trigger and was kicked onto the orbit: flash both
     { const el = now - evStart, tKick = S.I ? S.I.kickFrac * INJ.frac * evDur() : 0;
       const pulseAt = (t0) => (reduce ? 0 : (el < t0 ? 0 : Math.exp(-Math.min(1, (el - t0) / 260) * 4)));
-      S.app.kick.mats.forEach((m) => (m.opacity = 0.35 + 0.65 * pulseAt(tKick)));
-      S.app.trig.mats.forEach((m) => (m.opacity = 0.45 + 0.55 * pulseAt(0))); }
+      S.app.kick.mats.forEach((m) => (m.emissiveIntensity = 2.5 * pulseAt(tKick)));
+      S.app.trig.mats.forEach((m) => (m.emissiveIntensity = 0.3 + 2.0 * pulseAt(0))); }
     const F = S.E && S.E.fits[0], fp = prog(TL.fit, reduce ? 1 : f);
     if (F && fp > 0.8 && camD0 < 140) { S.trkLabel.textContent = `e⁺  ${F.t.p.toFixed(1)} MeV/c  ·  θ ${(F.t.theta * 180 / Math.PI).toFixed(0)}°`; project(S.trkLabel, F.end); project(S.vtxLabel, F.vtx.position); }
     else { project(S.trkLabel, null, false); project(S.vtxLabel, null, false); }
@@ -1625,6 +1704,22 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
   $("ghosts").addEventListener("change", () => { lastPhase = -1; });
   $("app").addEventListener("change", () => { lastPhase = -1; });
+  $("cutaway").addEventListener("change", () => (CUT.on = $("cutaway").checked));
+  $("explode").addEventListener("input", (e) => (CUT.explode = +e.target.value / 100));
+  // callout cards
+  let card = null;
+  function closeCard() { if (card) { card.remove(); card = null; } document.querySelectorAll(".co.sel").forEach((c) => c.classList.remove("sel")); }
+  function openCard(C) {
+    closeCard(); C.el.classList.add("sel");
+    card = document.createElement("div"); card.className = "card";
+    card.innerHTML = `<div class="eyebrow">Subsystem ${String(C.n).padStart(2, "0")}</div><h3>${C.title}</h3><p>${C.desc}</p><button class="x" type="button" aria-label="Close">✕</button>`;
+    $("labels").appendChild(card);
+    const r = C.el.getBoundingClientRect(), st = $("stage").getBoundingClientRect();
+    let x = r.right - st.left + 12, y = r.top - st.top - 10;
+    if (x + 300 > st.width) x = r.left - st.left - 302; if (x < 8) x = 8;
+    card.style.left = x + "px"; card.style.top = Math.max(8, Math.min(st.height - 200, y)) + "px"; card.style.pointerEvents = "auto";
+    card.querySelector(".x").addEventListener("click", closeCard);
+  }
   $("spin").addEventListener("change", () => { if ($("spin").checked) setCamBtn(null); });
   const ov = $("overlay");
   function showRender(on) {
@@ -1648,6 +1743,13 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   }
   window.addEventListener("keyup", (e) => { if (heldKeys.delete(e.key.toLowerCase())) setHold(); });
   window.addEventListener("blur", () => { heldKeys.clear(); setHold(); });
+
+  function wireCallouts() { if (!S.ok) return; S.app.callouts.forEach((C) => {
+    C.el.addEventListener("click", (e) => { e.stopPropagation(); card && C.el.classList.contains("sel") ? closeCard() : openCard(C); SFX.ui(); });
+    C.el.addEventListener("pointerenter", () => S.app.parts[C.key] && S.app.parts[C.key].forEach((m) => m.traverse((o) => { if (o.material && o.material.emissive) { o.userData.em = o.material.emissiveIntensity; o.material.emissiveIntensity = Math.max(o.userData.em || 0, 0.5); } })));
+    C.el.addEventListener("pointerleave", () => S.app.parts[C.key] && S.app.parts[C.key].forEach((m) => m.traverse((o) => { if (o.material && o.material.emissive && o.userData.em !== undefined) o.material.emissiveIntensity = o.userData.em; })));
+  });
+  $("stage").addEventListener("pointerdown", closeCard); }
 
   // sound is ON by default; the audio itself starts at the first click / key press (browser autoplay rule)
   let soundWanted = true;
@@ -1683,6 +1785,8 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     else if ("12345".includes(k)) goCam(["iso", "beam", "side", "track", "full"][+k - 1]);
     else if (k === "a") { $("app").checked = !$("app").checked; lastPhase = -1; }
     else if (k === "i") setMode(mode === "inject" ? "decay" : "inject");
+    else if (k === "c") { $("cutaway").checked = !$("cutaway").checked; CUT.on = $("cutaway").checked; }
+    else if (k === "l") $("co").checked = !$("co").checked;
   });
   // show the Δp/p histogram only where it fits above the Longitudinal panel
   function fitHist() {
@@ -1701,6 +1805,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
     const e = $("err"); e.hidden = false; e.textContent = "The 3D stage could not start (" + err.message + "). Events and panels keep running.";
   }
   for (let i = 0; i < 40; i++) { ev = simulate(g, R, { mult: 1 }); rec = reconstruct(g, ev.raw); nEvt++; updateStats(); pushLog(); }
+  wireCallouts();
   fitHist();
   nextEvent(performance.now());
   requestAnimationFrame(frame);
