@@ -88,6 +88,13 @@ The toy MC is optimistic: no multiple scattering, energy loss, tile planes,
 fibre cross-talk or multi-fibre clusters. The comparison is for orientation,
 not a validation.
 
+## Live display look
+
+Solid, lit (PBR) apparatus with image-based lighting and ACES tone mapping; a camera-facing **cutaway** (key `C`)
+clips the half of every shell nearest the viewer so the CHeT interior and tracks stay visible; numbered
+**callouts** (key `L`) open a description card per subsystem; an **explode** slider slides the end components
+apart. All of it sits in the Run control panel under *Look*.
+
 ## Live display modes
 
 * **decay** — one Michel positron per event, emitted from a muon already on the orbit.
