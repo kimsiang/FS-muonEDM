@@ -408,7 +408,7 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
         const phis = []; for (let f = 0; f < c.nfib; f += 4) phis.push((f + 0.5) * c.dphi);
         const col = s ? 0x2c5296 : 0x3460a8;
         det.add(new THREE.LineSegments(lineGeo(fibrePositions(c, sgn, c.r + (s ? 0.6 : 0), phis)),
-          new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: (0.16 + 0.04 * ci) * 0.7, depthWrite: false })   // ×0.7: same overall brightness at 1.5× width));
+          new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: (0.16 + 0.04 * ci) * 0.7, depthWrite: false })));   // ×0.7: same overall brightness at 1.5× width
       });
       [-g.L, g.L].forEach((z) => det.add(ring(c.r + 0.3, z, 0x3e64a8, 0.6)));
     });
@@ -1260,7 +1260,11 @@ body { font-family: var(--sans); font-size: 13px; line-height: 1.45; overflow-x:
   window.addEventListener("resize", () => { lastPhase = -1; fitHist(); drawHist(); });
 
   // warm start so the panels open filled in
-  S.ok = init3D() || false;
+  try { S.ok = init3D() || false; }
+  catch (err) {
+    S.ok = false; console.error(err);
+    const e = $("err"); e.hidden = false; e.textContent = "The 3D stage could not start (" + err.message + "). Events and panels keep running.";
+  }
   for (let i = 0; i < 40; i++) { ev = simulate(g, R, { mult: 1 }); rec = reconstruct(g, ev.raw); nEvt++; updateStats(); pushLog(); }
   fitHist();
   nextEvent(performance.now());
