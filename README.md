@@ -88,6 +88,15 @@ The toy MC is optimistic: no multiple scattering, energy loss, tile planes,
 fibre cross-talk or multi-fibre clusters. The comparison is for orientation,
 not a validation.
 
+## Live display modes
+
+* **decay** — one Michel positron per event, emitted from a muon already on the orbit.
+* **μ⁺ injection** (key `I`) — the muon leaves the CW superconducting injection tube at (0, 47, −455) mm,
+  spirals down the fringe field (cyclotron radius 34 → 30 mm, guiding centre drifting onto the axis, pitch
+  shrinking to zero), is kicked at z = 0, circulates 3–4 turns on the 30 mm orbit with a small weakly-focusing
+  bounce, then decays into the same positron event. An injection event lasts 1.9 × the selected interval.
+  The spiral is a display model (no field map); its end point is the simulated decay vertex.
+
 ## GPU notes
 
 * The GPU path uses the identical code; it **has not been run on a GPU in the
